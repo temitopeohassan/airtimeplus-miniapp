@@ -3,7 +3,6 @@
 import React, { type ReactNode, useCallback, useState } from "react";
 import { useAccount, useWalletClient, usePublicClient } from "wagmi";
 import { parseUnits } from "viem";
-import { useNotification } from "@coinbase/onchainkit/minikit";
 import data from "../data.json";
 
 // Reusable Button component
@@ -321,9 +320,9 @@ export function BuyAirtime({ setActiveTab }: BuyAirtimeProps) {
 
       setShowConfirmModal(false);
       setActiveTab("success");
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error processing transaction:", error);
-      setErrorMessage(error.message || "Transaction unsuccessful. Please try again.");
+      setErrorMessage(error instanceof Error ? error.message : "Transaction unsuccessful. Please try again.");
       setShowConfirmModal(false);
       setShowErrorModal(true);
     } finally {

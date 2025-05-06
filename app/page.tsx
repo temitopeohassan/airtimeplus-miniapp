@@ -17,7 +17,6 @@ import {
   WalletDropdown,
   WalletDropdownDisconnect,
 } from "@coinbase/onchainkit/wallet";
-import { useAccount } from "wagmi";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { Button } from "./components/Components";
 import { Icon } from "./components/Components";
@@ -26,8 +25,6 @@ import { BuyAirtime } from "./components/Components";
 export default function App() {
   const { setFrameReady, isFrameReady, context } = useMiniKit();
   const [frameAdded, setFrameAdded] = useState(false);
-  const [activeTab, setActiveTab] = useState("buy airtime");
-  const { address } = useAccount();
 
   const addFrame = useAddFrame();
 
@@ -95,7 +92,7 @@ export default function App() {
         </header>
 
         <main className="flex-1">
-          <BuyAirtime setActiveTab={setActiveTab} />
+          <BuyAirtime setActiveTab={(tab: string) => {}} />
         </main>
 
         <footer className="mt-2 pt-4 flex justify-center">
