@@ -92,7 +92,7 @@ export default function App() {
         </header>
 
         <main className="flex-1">
-          <BuyAirtime setActiveTab={(tab: string) => {}} />
+          <BuyAirtime setActiveTab={(_tab: string) => {}} />
         </main>
 
         <footer className="mt-2 pt-4 flex justify-center">
