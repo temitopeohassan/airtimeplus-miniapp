@@ -290,6 +290,9 @@ export function BuyAirtime({ setActiveTab }: BuyAirtimeProps) {
       if (!walletClient || !isConnected || !address) {
         throw new Error("Wallet not connected");
       }
+      if (!publicClient) {
+        throw new Error("Public client not available");
+      }
       const amountInWei = parseUnits(amount, 6);
       // Send on-chain transaction
       const txHash = await walletClient.writeContract({
