@@ -2,7 +2,7 @@
 
 import React, { type ReactNode, useCallback, useState } from "react";
 import { useAccount, useWalletClient, usePublicClient } from "wagmi";
-import { ethers } from "ethers";
+import { parseUnits } from "viem";
 import { useNotification } from "@coinbase/onchainkit/minikit";
 import data from "../data.json";
 
@@ -291,7 +291,7 @@ export function BuyAirtime({ setActiveTab }: BuyAirtimeProps) {
       if (!walletClient || !isConnected || !address) {
         throw new Error("Wallet not connected");
       }
-      const amountInWei = ethers.utils.parseUnits(amount, 6);
+      const amountInWei = parseUnits(amount, 6);
       // Send on-chain transaction
       const txHash = await walletClient.writeContract({
         address: CONTRACT_ADDRESS,
