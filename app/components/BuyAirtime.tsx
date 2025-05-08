@@ -38,11 +38,25 @@ export function BuyAirtime({ setActiveTab }: BuyAirtimeProps) {
   const { data: walletClient } = useWalletClient();
   const publicClient = usePublicClient();
 
-  const CONTRACT_ADDRESS = "0xaF108Dd1aC530F1c4BdED13f43E336A9cec92B44";
+  const CONTRACT_ADDRESS = "0xaF108Dd1aC530F1c4BdED13f43E336A9cec92B44" as `0x${string}`;
   const CONTRACT_ABI = [
-    "function processPayment(uint256 amount) external nonReentrant",
-    "event PaymentProcessed(address indexed from, uint256 amount, uint256 timestamp)",
-  ];
+    {
+      name: "processPayment",
+      type: "function",
+      stateMutability: "nonpayable",
+      inputs: [{ name: "amount", type: "uint256" }],
+      outputs: [],
+    },
+    {
+      name: "PaymentProcessed",
+      type: "event",
+      inputs: [
+        { name: "from", type: "address", indexed: true },
+        { name: "amount", type: "uint256", indexed: false },
+        { name: "timestamp", type: "uint256", indexed: false }
+      ],
+    }
+  ] as const;
 
   // Fetch Countries and their services
   useEffect(() => {
@@ -71,23 +85,41 @@ export function BuyAirtime({ setActiveTab }: BuyAirtimeProps) {
   }, []);
 
   const handleSubmitForm = () => {
+    console.log('Form submission started with values:', {
+      selectedCountry,
+      selectedOperator,
+      selectedAmount,
+      recipientPhone
+    });
+
     if (!selectedCountry) return alert("Please select a country.");
     if (!selectedOperator) return alert("Please select an operator.");
     if (!selectedAmount) return alert("Please select an amount.");
     if (!recipientPhone) return alert("Please enter recipient phone number.");
     if (!/^\d{11}$/.test(recipientPhone)) return alert("Please enter a valid 11-digit phone number.");
+    
+    console.log('All validations passed, showing confirmation modal');
     setShowConfirmModal(true);
   };
 
   const handleConfirmedSubmit = async () => {
-    if (!selectedAmount) return;
+    console.log('Confirmation modal submit started');
+    console.log('Selected amount details:', selectedAmount);
+    
+    if (!selectedAmount) {
+      console.error('No amount selected');
+      return;
+    }
     
     setIsSubmitting(true);
     try {
+      console.log('Checking wallet connection...');
       if (!walletClient || !isConnected || !address) {
+        console.error('Wallet not connected:', { walletClient, isConnected, address });
         throw new Error("Wallet not connected");
       }
       if (!publicClient) {
+        console.error('Public client not available');
         throw new Error("Public client not available");
       }
 
@@ -95,30 +127,35 @@ export function BuyAirtime({ setActiveTab }: BuyAirtimeProps) {
       const usdcValue = selectedAmount.usdc_value;
       const amountInWei = parseUnits(usdcValue.toString(), 6);
 
-      console.log('Sending payment:', {
+      console.log('Payment details:', {
         usdcValue,
         amountInWei: amountInWei.toString(),
         operator: selectedAmount.network_operator,
         amount: selectedAmount.amount,
-        currency: selectedAmount.currency
+        currency: selectedAmount.currency,
+        contractAddress: CONTRACT_ADDRESS,
+        abi: CONTRACT_ABI
       });
 
       // Send payment to smart contract
+      console.log('Attempting to write to contract...');
       const txHash = await walletClient.writeContract({
-        address: CONTRACT_ADDRESS as `0x${string}`,
+        address: CONTRACT_ADDRESS,
         abi: CONTRACT_ABI,
         functionName: "processPayment",
         args: [amountInWei],
         account: address,
       });
 
-      console.log('Transaction hash:', txHash);
+      console.log('Transaction hash received:', txHash);
 
       // Wait for transaction confirmation
+      console.log('Waiting for transaction confirmation...');
       const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
-      console.log('Transaction confirmed:', receipt);
+      console.log('Transaction confirmed with receipt:', receipt);
 
       // Only proceed with airtime purchase if payment is successful
+      console.log('Payment successful, proceeding with airtime purchase...');
       const response = await fetch(`${API_BASE_URL}/send-topup`, {
         method: "POST",
         headers: { 
@@ -137,6 +174,7 @@ export function BuyAirtime({ setActiveTab }: BuyAirtimeProps) {
 
       if (!response.ok) {
         const errorData = await response.json();
+        console.error('API response not ok:', errorData);
         throw new Error(errorData.error || "Network response was not ok");
       }
       
@@ -147,6 +185,11 @@ export function BuyAirtime({ setActiveTab }: BuyAirtimeProps) {
       setActiveTab("success");
     } catch (error) {
       console.error("Error processing transaction:", error);
+      console.error("Error details:", {
+        name: error instanceof Error ? error.name : 'Unknown',
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      });
       setErrorMessage(error instanceof Error ? error.message : "Transaction unsuccessful. Please try again.");
       setShowConfirmModal(false);
       setShowErrorModal(true);
@@ -286,10 +329,19 @@ export function BuyAirtime({ setActiveTab }: BuyAirtimeProps) {
               <p className="text-center dark:text-white">
                 <span className="font-bold">Recipient:</span> {recipientPhone}
               </p>
+              <p className="text-center dark:text-white">
+                <span className="font-bold">Operator ID:</span> {selectedAmount.operator_id}
+              </p>
             </div>
             <div className="flex justify-end space-x-4">
-              <Button variant="ghost" onClick={() => setShowConfirmModal(false)} disabled={isSubmitting}>Edit</Button>
-              <Button onClick={handleConfirmedSubmit} disabled={isSubmitting}>
+              <Button variant="ghost" onClick={() => {
+                console.log('Edit button clicked, closing modal');
+                setShowConfirmModal(false);
+              }} disabled={isSubmitting}>Edit</Button>
+              <Button onClick={() => {
+                console.log('Confirm button clicked, starting payment process');
+                handleConfirmedSubmit();
+              }} disabled={isSubmitting}>
                 {isSubmitting ? "Processing..." : "Confirm Purchase"}
               </Button>
             </div>
