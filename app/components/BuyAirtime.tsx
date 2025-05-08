@@ -87,7 +87,19 @@ export function BuyAirtime({ setActiveTab }: BuyAirtimeProps) {
       if (!walletClient || !isConnected || !address) throw new Error("Wallet not connected");
       if (!publicClient) throw new Error("Public client not available");
 
-      const amountInWei = parseUnits(selectedAmount.usdc_value.toString(), 6);
+      // Convert USDC value to wei (6 decimals for USDC)
+      const usdcValue = selectedAmount.usdc_value;
+      const amountInWei = parseUnits(usdcValue.toString(), 6);
+
+      console.log('Sending payment:', {
+        usdcValue,
+        amountInWei: amountInWei.toString(),
+        operator: selectedAmount.network_operator,
+        amount: selectedAmount.amount,
+        currency: selectedAmount.currency
+      });
+
+      // Send payment to smart contract
       const txHash = await walletClient.writeContract({
         address: CONTRACT_ADDRESS,
         abi: CONTRACT_ABI,
@@ -96,8 +108,13 @@ export function BuyAirtime({ setActiveTab }: BuyAirtimeProps) {
         account: address,
       });
 
-      await publicClient.waitForTransactionReceipt({ hash: txHash });
+      console.log('Transaction hash:', txHash);
 
+      // Wait for transaction confirmation
+      const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
+      console.log('Transaction confirmed:', receipt);
+
+      // Only proceed with airtime purchase if payment is successful
       const response = await fetch("/send-topup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
