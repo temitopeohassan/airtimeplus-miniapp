@@ -49,7 +49,7 @@ export function BuyAirtime({ setActiveTab }: BuyAirtimeProps) {
     const fetchCountries = async () => {
       setIsLoading(true);
       try {
-        const res = await fetch(`${API_BASE_URL}/countries`);
+        const res = await fetch(`${API_BASE_URL}/services-data`);
         if (!res.ok) {
           throw new Error(`HTTP error! status: ${res.status}`);
         }
@@ -207,7 +207,7 @@ export function BuyAirtime({ setActiveTab }: BuyAirtimeProps) {
               <option value="">Select Amount</option>
               {getOperatorAmounts().map((service) => (
                 <option key={service.amount} value={service.amount}>
-                  {service.amount} {service.currency} (${service.usdc_value} USDC)
+                  {service.amount} {service.currency} 
                 </option>
               ))}
             </select>
