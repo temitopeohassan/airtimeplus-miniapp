@@ -113,7 +113,13 @@ export function BuyAirtime({ setActiveTab }: BuyAirtimeProps) {
     
     setIsSubmitting(true);
     try {
-      console.log('Checking wallet connection...');
+      console.log('Checking wallet connection...', {
+        walletClient: !!walletClient,
+        isConnected,
+        address,
+        publicClient: !!publicClient
+      });
+
       if (!walletClient || !isConnected || !address) {
         console.error('Wallet not connected:', { walletClient, isConnected, address });
         throw new Error("Wallet not connected");
@@ -139,20 +145,38 @@ export function BuyAirtime({ setActiveTab }: BuyAirtimeProps) {
 
       // Send payment to smart contract
       console.log('Attempting to write to contract...');
-      const txHash = await walletClient.writeContract({
+      
+      // Prepare the transaction with proper typing
+      const preparedTx = {
         address: CONTRACT_ADDRESS,
         abi: CONTRACT_ABI,
-        functionName: "processPayment",
-        args: [amountInWei],
+        functionName: "processPayment" as const,
+        args: [amountInWei] as const,
         account: address,
-      });
+      };
+      
+      console.log('Prepared transaction:', preparedTx);
 
+      // Send the transaction
+      const txHash = await walletClient.writeContract(preparedTx);
       console.log('Transaction hash received:', txHash);
 
       // Wait for transaction confirmation
       console.log('Waiting for transaction confirmation...');
-      const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
-      console.log('Transaction confirmed with receipt:', receipt);
+      const receipt = await publicClient.waitForTransactionReceipt({ 
+        hash: txHash,
+        timeout: 60000 // 60 second timeout
+      });
+      
+      console.log('Transaction confirmed with receipt:', {
+        status: receipt.status,
+        blockNumber: receipt.blockNumber,
+        transactionHash: receipt.transactionHash
+      });
+
+      if (receipt.status === 'reverted') {
+        throw new Error('Transaction was reverted');
+      }
 
       // Only proceed with airtime purchase if payment is successful
       console.log('Payment successful, proceeding with airtime purchase...');
@@ -190,7 +214,22 @@ export function BuyAirtime({ setActiveTab }: BuyAirtimeProps) {
         message: error instanceof Error ? error.message : 'Unknown error',
         stack: error instanceof Error ? error.stack : undefined
       });
-      setErrorMessage(error instanceof Error ? error.message : "Transaction unsuccessful. Please try again.");
+      
+      // More specific error messages for common issues
+      let errorMessage = "Transaction unsuccessful. Please try again.";
+      if (error instanceof Error) {
+        if (error.message.includes("user rejected")) {
+          errorMessage = "Transaction was rejected. Please try again.";
+        } else if (error.message.includes("insufficient funds")) {
+          errorMessage = "Insufficient funds. Please check your balance.";
+        } else if (error.message.includes("network")) {
+          errorMessage = "Network error. Please check your connection.";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      setErrorMessage(errorMessage);
       setShowConfirmModal(false);
       setShowErrorModal(true);
     } finally {
@@ -328,9 +367,6 @@ export function BuyAirtime({ setActiveTab }: BuyAirtimeProps) {
               </p>
               <p className="text-center dark:text-white">
                 <span className="font-bold">Recipient:</span> {recipientPhone}
-              </p>
-              <p className="text-center dark:text-white">
-                <span className="font-bold">Operator ID:</span> {selectedAmount.operator_id}
               </p>
             </div>
             <div className="flex justify-end space-x-4">
