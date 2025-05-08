@@ -84,8 +84,12 @@ export function BuyAirtime({ setActiveTab }: BuyAirtimeProps) {
     
     setIsSubmitting(true);
     try {
-      if (!walletClient || !isConnected || !address) throw new Error("Wallet not connected");
-      if (!publicClient) throw new Error("Public client not available");
+      if (!walletClient || !isConnected || !address) {
+        throw new Error("Wallet not connected");
+      }
+      if (!publicClient) {
+        throw new Error("Public client not available");
+      }
 
       // Convert USDC value to wei (6 decimals for USDC)
       const usdcValue = selectedAmount.usdc_value;
@@ -101,7 +105,7 @@ export function BuyAirtime({ setActiveTab }: BuyAirtimeProps) {
 
       // Send payment to smart contract
       const txHash = await walletClient.writeContract({
-        address: CONTRACT_ADDRESS,
+        address: CONTRACT_ADDRESS as `0x${string}`,
         abi: CONTRACT_ABI,
         functionName: "processPayment",
         args: [amountInWei],
@@ -115,9 +119,12 @@ export function BuyAirtime({ setActiveTab }: BuyAirtimeProps) {
       console.log('Transaction confirmed:', receipt);
 
       // Only proceed with airtime purchase if payment is successful
-      const response = await fetch("/send-topup", {
+      const response = await fetch(`${API_BASE_URL}/send-topup`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
         body: JSON.stringify({
           operatorId: selectedAmount.operator_id,
           amount: selectedAmount.amount,
@@ -128,7 +135,11 @@ export function BuyAirtime({ setActiveTab }: BuyAirtimeProps) {
         }),
       });
 
-      if (!response.ok) throw new Error("Network response was not ok");
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Network response was not ok");
+      }
+      
       const dataResp = await response.json();
       console.log("Topup Response:", dataResp);
 
