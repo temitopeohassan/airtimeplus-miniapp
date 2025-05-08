@@ -18,9 +18,9 @@ import {
   WalletDropdownDisconnect,
 } from "@coinbase/onchainkit/wallet";
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { Button } from "./components/Components";
-import { Icon } from "./components/Components";
-import { BuyAirtime } from "./components/Components";
+import { Button } from "./components/Button";
+import { Icon } from "./components/Icon";
+import { BuyAirtime } from "./components/BuyAirtime";
 
 export default function App() {
   const { setFrameReady, isFrameReady, context } = useMiniKit();
