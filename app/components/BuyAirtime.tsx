@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { useAccount, useWalletClient, usePublicClient } from "wagmi";
+import { useAccount, useWalletClient, usePublicClient, useConnect, useDisconnect } from "wagmi";
 import { parseUnits, formatUnits } from "viem";
 import { Button } from "./Button";
 import { Card } from "./Card";
 import { API_BASE_URL } from '../config';
+import { injected } from 'wagmi/connectors';
 
 type BuyAirtimeProps = { setActiveTab: (tab: string) => void };
 
@@ -71,6 +72,8 @@ export function BuyAirtime({ setActiveTab }: BuyAirtimeProps) {
   const { address, isConnected } = useAccount();
   const { data: walletClient } = useWalletClient();
   const publicClient = usePublicClient();
+  const { connect } = useConnect();
+  const { disconnect } = useDisconnect();
 
   const CONTRACT_ADDRESS = "0xaF108Dd1aC530F1c4BdED13f43E336A9cec92B44" as `0x${string}`;
   const CONTRACT_ABI = [
@@ -91,6 +94,21 @@ export function BuyAirtime({ setActiveTab }: BuyAirtimeProps) {
       ],
     }
   ] as const;
+
+  // Auto connect wallet on component mount
+  useEffect(() => {
+    const autoConnect = async () => {
+      try {
+        if (!isConnected) {
+          console.log("Attempting to auto-connect wallet...");
+          await connect({ connector: injected() });
+        }
+      } catch (error) {
+        console.error("Auto-connect failed:", error);
+      }
+    };
+    autoConnect();
+  }, [isConnected, connect]);
 
   // Fetch Countries and their services
   useEffect(() => {
@@ -140,13 +158,25 @@ export function BuyAirtime({ setActiveTab }: BuyAirtimeProps) {
   const checkUsdcBalance = async () => {
     if (!address || !publicClient) {
       console.error("Missing address or publicClient");
-      return BigInt(0);
+      throw new Error("Wallet not connected");
     }
     
     try {
       console.log("Checking USDC balance for address:", address);
+      
+      // First check if we're on the correct network
+      const chainId = await publicClient.getChainId();
+      console.log("Current chain ID:", chainId);
+      
+      // Get the USDC contract address based on the network
+      const usdcAddress = chainId === 1 ? 
+        "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48" : // Mainnet
+        "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"; // Base
+        
+      console.log("Using USDC contract address:", usdcAddress);
+      
       const balance = await publicClient.readContract({
-        address: USDC_CONTRACT_ADDRESS,
+        address: usdcAddress as `0x${string}`,
         abi: USDC_TOKEN_ABI,
         functionName: "balanceOf",
         args: [address]
@@ -166,7 +196,7 @@ export function BuyAirtime({ setActiveTab }: BuyAirtimeProps) {
           stack: error.stack
         });
       }
-      throw new Error("Failed to check USDC balance. Please try again.");
+      throw new Error("Failed to check USDC balance. Please ensure you're connected to the correct network.");
     }
   };
 
@@ -312,20 +342,14 @@ export function BuyAirtime({ setActiveTab }: BuyAirtimeProps) {
     
     setIsSubmitting(true);
     try {
-      console.log('Checking wallet connection...', {
-        walletClient: !!walletClient,
-        isConnected,
-        address,
-        publicClient: !!publicClient
-      });
-
-      if (!walletClient || !isConnected || !address) {
-        console.error('Wallet not connected:', { walletClient, isConnected, address });
-        throw new Error("Wallet not connected");
+      // Ensure wallet is connected
+      if (!isConnected) {
+        console.log("Wallet not connected, attempting to connect...");
+        await connect({ connector: injected() });
       }
-      if (!publicClient) {
-        console.error('Public client not available');
-        throw new Error("Public client not available");
+
+      if (!walletClient || !address) {
+        throw new Error("Wallet connection failed. Please try again.");
       }
 
       // Convert USDC value to wei (6 decimals for USDC)
@@ -416,21 +440,15 @@ export function BuyAirtime({ setActiveTab }: BuyAirtimeProps) {
       setActiveTab("success");
     } catch (error) {
       console.error("Error processing transaction:", error);
-      console.error("Error details:", {
-        name: error instanceof Error ? error.name : 'Unknown',
-        message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined
-      });
-      
-      // More specific error messages for common issues
       let errorMessage = "Transaction unsuccessful. Please try again.";
+      
       if (error instanceof Error) {
         if (error.message.includes("user rejected")) {
           errorMessage = "Transaction was rejected. Please try again.";
         } else if (error.message.includes("insufficient funds") || error.message.includes("Insufficient")) {
           errorMessage = error.message;
         } else if (error.message.includes("network")) {
-          errorMessage = "Network error. Please check your connection.";
+          errorMessage = "Network error. Please check your connection and ensure you're on the correct network.";
         } else {
           errorMessage = error.message;
         }
