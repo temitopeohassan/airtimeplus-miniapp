@@ -139,26 +139,24 @@ export function BuyAirtime({ setActiveTab }: BuyAirtimeProps) {
         operator: selectedAmount.network_operator,
         amount: selectedAmount.amount,
         currency: selectedAmount.currency,
-        contractAddress: CONTRACT_ADDRESS,
-        abi: CONTRACT_ABI
+        contractAddress: CONTRACT_ADDRESS
       });
 
       // Send payment to smart contract
       console.log('Attempting to write to contract...');
       
-      // Prepare the transaction with proper typing
-      const preparedTx = {
+      const { request } = await publicClient.simulateContract({
         address: CONTRACT_ADDRESS,
         abi: CONTRACT_ABI,
-        functionName: "processPayment" as const,
-        args: [amountInWei] as const,
-        account: address,
-      };
+        functionName: "processPayment",
+        args: [amountInWei],
+        account: address
+      });
       
-      console.log('Prepared transaction:', preparedTx);
-
+      console.log('Transaction simulation successful, request:', request);
+      
       // Send the transaction
-      const txHash = await walletClient.writeContract(preparedTx);
+      const txHash = await walletClient.writeContract(request);
       console.log('Transaction hash received:', txHash);
 
       // Wait for transaction confirmation
