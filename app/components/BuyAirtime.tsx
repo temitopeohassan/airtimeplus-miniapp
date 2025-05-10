@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useAccount, useWalletClient, usePublicClient, useConnect, useDisconnect } from "wagmi";
+import { useAccount, useWalletClient, usePublicClient, useConnect } from "wagmi";
 import { parseUnits, formatUnits } from "viem";
 import { Button } from "./Button";
 import { Card } from "./Card";
@@ -73,7 +73,6 @@ export function BuyAirtime({ setActiveTab }: BuyAirtimeProps) {
   const { data: walletClient } = useWalletClient();
   const publicClient = usePublicClient();
   const { connect } = useConnect();
-  const { disconnect } = useDisconnect();
 
   const CONTRACT_ADDRESS = "0xaF108Dd1aC530F1c4BdED13f43E336A9cec92B44" as `0x${string}`;
   const CONTRACT_ABI = [
