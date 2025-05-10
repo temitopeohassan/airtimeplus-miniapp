@@ -23,8 +23,7 @@ type Country = {
   };
 };
 
-// USDC Token Contract Details
-const USDC_CONTRACT_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48" as `0x${string}`; // Mainnet USDC
+// USDC Token Contract ABI
 const USDC_TOKEN_ABI = [
   {
     name: "approve",
@@ -75,17 +74,6 @@ export function BuyAirtime({ setActiveTab }: BuyAirtimeProps) {
   const { connect } = useConnect();
 
   const CONTRACT_ADDRESS = "0xaF108Dd1aC530F1c4BdED13f43E336A9cec92B44" as `0x${string}`;
-  const CONTRACT_ABI = [
-    {
-      name: "PaymentProcessed",
-      type: "event",
-      inputs: [
-        { name: "from", type: "address", indexed: true },
-        { name: "amount", type: "uint256", indexed: false },
-        { name: "timestamp", type: "uint256", indexed: false }
-      ],
-    }
-  ] as const;
 
   // Auto connect wallet on component mount
   useEffect(() => {
