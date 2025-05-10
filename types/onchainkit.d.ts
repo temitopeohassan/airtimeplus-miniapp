@@ -11,8 +11,21 @@ declare module '@coinbase/onchainkit/minikit' {
     context: any;
   }
 
+  export interface MiniKitConfig {
+    appearance?: {
+      theme?: string;
+      [key: string]: any;
+    };
+    [key: string]: any;
+  }
+
   export const MiniKit: React.FC<MiniKitProps>;
-  export const MiniKitProvider: React.FC<{ children: React.ReactNode }>;
+  export const MiniKitProvider: React.FC<{
+    children: React.ReactNode;
+    apiKey?: string;
+    chain: any;
+    config?: MiniKitConfig;
+  }>;
 
   export interface Frame {
     id: string;
