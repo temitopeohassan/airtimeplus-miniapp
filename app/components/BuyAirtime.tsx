@@ -77,13 +77,6 @@ export function BuyAirtime({ setActiveTab }: BuyAirtimeProps) {
   const CONTRACT_ADDRESS = "0xaF108Dd1aC530F1c4BdED13f43E336A9cec92B44" as `0x${string}`;
   const CONTRACT_ABI = [
     {
-      name: "processPayment",
-      type: "function",
-      stateMutability: "nonpayable",
-      inputs: [{ name: "amount", type: "uint256" }],
-      outputs: [],
-    },
-    {
       name: "PaymentProcessed",
       type: "event",
       inputs: [
@@ -199,26 +192,6 @@ export function BuyAirtime({ setActiveTab }: BuyAirtimeProps) {
     }
   };
 
-  // Check if the contract has allowance to spend user's USDC
-  const checkAllowance = async () => {
-    if (!address || !publicClient) return BigInt(0);
-    
-    try {
-      const allowance = await publicClient.readContract({
-        address: USDC_CONTRACT_ADDRESS,
-        abi: USDC_TOKEN_ABI,
-        functionName: "allowance",
-        args: [address, CONTRACT_ADDRESS]
-      });
-      
-      console.log(`Current allowance: ${formatUnits(allowance, 6)} USDC`);
-      return allowance;
-    } catch (error) {
-      console.error("Error checking allowance:", error);
-      return BigInt(0);
-    }
-  };
-
   // Directly transfer USDC to the contract address
   const transferUsdcDirectly = async (amount: bigint) => {
     if (!walletClient || !address || !publicClient) throw new Error("Wallet not connected");
@@ -294,43 +267,6 @@ export function BuyAirtime({ setActiveTab }: BuyAirtimeProps) {
       return transferTxHash;
     } catch (error) {
       console.error("Error transferring USDC:", error);
-      throw error;
-    }
-  };
-
-  // Call the contract's processPayment function
-  const callProcessPayment = async (amount: bigint) => {
-    if (!walletClient || !address || !publicClient) throw new Error("Wallet not connected");
-    
-    setTransactionStatus("Processing payment...");
-    console.log(`Calling processPayment with amount: ${formatUnits(amount, 6)}`);
-    
-    try {
-      const { request } = await publicClient.simulateContract({
-        address: CONTRACT_ADDRESS,
-        abi: CONTRACT_ABI,
-        functionName: "processPayment",
-        args: [amount],
-        account: address
-      });
-      
-      const txHash = await walletClient.writeContract(request);
-      console.log("processPayment transaction hash:", txHash);
-      
-      setTransactionStatus("Waiting for payment confirmation...");
-      const receipt = await publicClient.waitForTransactionReceipt({
-        hash: txHash,
-        timeout: 60000
-      });
-      
-      if (receipt.status === 'reverted') {
-        throw new Error("processPayment transaction was reverted");
-      }
-      
-      console.log("Payment processing successful");
-      return true;
-    } catch (error) {
-      console.error("Error calling processPayment:", error);
       throw error;
     }
   };
