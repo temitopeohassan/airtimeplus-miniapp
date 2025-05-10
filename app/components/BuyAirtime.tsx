@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useAccount, useWalletClient, usePublicClient } from "wagmi";
-import { parseUnits } from "viem";
+import { parseUnits, formatUnits } from "viem";
 import { Button } from "./Button";
 import { Card } from "./Card";
 import { API_BASE_URL } from '../config';
@@ -22,6 +22,39 @@ type Country = {
   };
 };
 
+// USDC Token Contract Details
+const USDC_CONTRACT_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48" as `0x${string}`; // Mainnet USDC
+const USDC_TOKEN_ABI = [
+  {
+    name: "approve",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "spender", type: "address" }, { name: "amount", type: "uint256" }],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    name: "transfer",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "recipient", type: "address" }, { name: "amount", type: "uint256" }],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    name: "balanceOf",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "account", type: "address" }],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    name: "allowance",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "owner", type: "address" }, { name: "spender", type: "address" }],
+    outputs: [{ name: "", type: "uint256" }],
+  }
+] as const;
+
 export function BuyAirtime({ setActiveTab }: BuyAirtimeProps) {
   const [selectedCountry, setSelectedCountry] = useState("");
   const [selectedOperator, setSelectedOperator] = useState<string>("");
@@ -33,6 +66,7 @@ export function BuyAirtime({ setActiveTab }: BuyAirtimeProps) {
   const [errorMessage, setErrorMessage] = useState("");
   const [countries, setCountries] = useState<Country[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [transactionStatus, setTransactionStatus] = useState("");
 
   const { address, isConnected } = useAccount();
   const { data: walletClient } = useWalletClient();
@@ -102,6 +136,157 @@ export function BuyAirtime({ setActiveTab }: BuyAirtimeProps) {
     setShowConfirmModal(true);
   };
 
+  // Check the user's USDC balance
+  const checkUsdcBalance = async () => {
+    if (!address || !publicClient) return BigInt(0);
+    
+    try {
+      const balance = await publicClient.readContract({
+        address: USDC_CONTRACT_ADDRESS,
+        abi: USDC_TOKEN_ABI,
+        functionName: "balanceOf",
+        args: [address]
+      });
+      
+      console.log(`USDC Balance: ${formatUnits(balance, 6)} USDC`);
+      return balance;
+    } catch (error) {
+      console.error("Error checking USDC balance:", error);
+      return BigInt(0);
+    }
+  };
+
+  // Check if the contract has allowance to spend user's USDC
+  const checkAllowance = async () => {
+    if (!address || !publicClient) return BigInt(0);
+    
+    try {
+      const allowance = await publicClient.readContract({
+        address: USDC_CONTRACT_ADDRESS,
+        abi: USDC_TOKEN_ABI,
+        functionName: "allowance",
+        args: [address, CONTRACT_ADDRESS]
+      });
+      
+      console.log(`Current allowance: ${formatUnits(allowance, 6)} USDC`);
+      return allowance;
+    } catch (error) {
+      console.error("Error checking allowance:", error);
+      return BigInt(0);
+    }
+  };
+
+  // Approve the contract to spend USDC
+  const approveUsdcSpend = async (amount: bigint) => {
+    if (!walletClient || !address || !publicClient) throw new Error("Wallet not connected");
+    
+    setTransactionStatus("Approving USDC spend...");
+    console.log(`Approving ${formatUnits(amount, 6)} USDC for contract ${CONTRACT_ADDRESS}`);
+    
+    try {
+      const { request } = await publicClient.simulateContract({
+        address: USDC_CONTRACT_ADDRESS,
+        abi: USDC_TOKEN_ABI,
+        functionName: "approve",
+        args: [CONTRACT_ADDRESS, amount],
+        account: address
+      });
+      
+      const txHash = await walletClient.writeContract(request);
+      console.log("Approval transaction hash:", txHash);
+      
+      setTransactionStatus("Waiting for approval confirmation...");
+      const receipt = await publicClient.waitForTransactionReceipt({
+        hash: txHash,
+        timeout: 60000
+      });
+      
+      if (receipt.status === 'reverted') {
+        throw new Error("USDC approval transaction was reverted");
+      }
+      
+      console.log("USDC approval successful");
+      return true;
+    } catch (error) {
+      console.error("Error approving USDC spend:", error);
+      throw error;
+    }
+  };
+
+  // Directly transfer USDC to the contract address
+  const transferUsdcDirectly = async (amount: bigint) => {
+    if (!walletClient || !address || !publicClient) throw new Error("Wallet not connected");
+    
+    setTransactionStatus("Transferring USDC...");
+    console.log(`Transferring ${formatUnits(amount, 6)} USDC to contract ${CONTRACT_ADDRESS}`);
+    
+    try {
+      const { request } = await publicClient.simulateContract({
+        address: USDC_CONTRACT_ADDRESS,
+        abi: USDC_TOKEN_ABI,
+        functionName: "transfer",
+        args: [CONTRACT_ADDRESS, amount],
+        account: address
+      });
+      
+      const txHash = await walletClient.writeContract(request);
+      console.log("Transfer transaction hash:", txHash);
+      
+      setTransactionStatus("Waiting for transfer confirmation...");
+      const receipt = await publicClient.waitForTransactionReceipt({
+        hash: txHash,
+        timeout: 60000
+      });
+      
+      if (receipt.status === 'reverted') {
+        throw new Error("USDC transfer transaction was reverted");
+      }
+      
+      console.log("USDC transfer successful");
+      return true;
+    } catch (error) {
+      console.error("Error transferring USDC:", error);
+      throw error;
+    }
+  };
+
+  // Call the contract's processPayment function
+  const callProcessPayment = async (amount: bigint) => {
+    if (!walletClient || !address || !publicClient) throw new Error("Wallet not connected");
+    
+    setTransactionStatus("Processing payment...");
+    console.log(`Calling processPayment with amount: ${formatUnits(amount, 6)}`);
+    
+    try {
+      const { request } = await publicClient.simulateContract({
+        address: CONTRACT_ADDRESS,
+        abi: CONTRACT_ABI,
+        functionName: "processPayment",
+        args: [amount],
+        account: address
+      });
+      
+      const txHash = await walletClient.writeContract(request);
+      console.log("processPayment transaction hash:", txHash);
+      
+      setTransactionStatus("Waiting for payment confirmation...");
+      const receipt = await publicClient.waitForTransactionReceipt({
+        hash: txHash,
+        timeout: 60000
+      });
+      
+      if (receipt.status === 'reverted') {
+        throw new Error("processPayment transaction was reverted");
+      }
+      
+      console.log("Payment processing successful");
+      return true;
+    } catch (error) {
+      console.error("Error calling processPayment:", error);
+      throw error;
+    }
+  };
+
   const handleConfirmedSubmit = async () => {
     console.log('Confirmation modal submit started');
     console.log('Selected amount details:', selectedAmount);
@@ -142,42 +327,39 @@ export function BuyAirtime({ setActiveTab }: BuyAirtimeProps) {
         contractAddress: CONTRACT_ADDRESS
       });
 
-      // Send payment to smart contract
-      console.log('Attempting to write to contract...');
-      
-      const { request } = await publicClient.simulateContract({
-        address: CONTRACT_ADDRESS,
-        abi: CONTRACT_ABI,
-        functionName: "processPayment",
-        args: [amountInWei],
-        account: address
-      });
-      
-      console.log('Transaction simulation successful, request:', request);
-      
-      // Send the transaction
-      const txHash = await walletClient.writeContract(request);
-      console.log('Transaction hash received:', txHash);
+      // Check USDC balance
+      setTransactionStatus("Checking your USDC balance...");
+      const balance = await checkUsdcBalance();
+      if (balance < amountInWei) {
+        throw new Error(`Insufficient USDC balance. You have ${formatUnits(balance, 6)} USDC, but ${usdcValue} USDC is required.`);
+      }
 
-      // Wait for transaction confirmation
-      console.log('Waiting for transaction confirmation...');
-      const receipt = await publicClient.waitForTransactionReceipt({ 
-        hash: txHash,
-        timeout: 60000 // 60 second timeout
-      });
-      
-      console.log('Transaction confirmed with receipt:', {
-        status: receipt.status,
-        blockNumber: receipt.blockNumber,
-        transactionHash: receipt.transactionHash
-      });
+      // Implementation strategy:
+      // 1. First try using the contract's processPayment function
+      // 2. If that fails, try direct USDC transfer after approval
 
-      if (receipt.status === 'reverted') {
-        throw new Error('Transaction was reverted');
+      try {
+        // Option 1: Try calling processPayment directly
+        setTransactionStatus("Attempting to process payment via contract...");
+        await callProcessPayment(amountInWei);
+      } catch (processError) {
+        console.warn("processPayment failed, trying direct USDC transfer instead:", processError);
+        
+        // Option 2: Check allowance and approve if needed
+        const allowance = await checkAllowance();
+        if (allowance < amountInWei) {
+          await approveUsdcSpend(amountInWei);
+        } else {
+          console.log("Sufficient allowance already exists");
+        }
+        
+        // Direct transfer to contract
+        await transferUsdcDirectly(amountInWei);
       }
 
       // Only proceed with airtime purchase if payment is successful
       console.log('Payment successful, proceeding with airtime purchase...');
+      setTransactionStatus("Sending airtime topup request...");
       const response = await fetch(`${API_BASE_URL}/send-topup`, {
         method: "POST",
         headers: { 
@@ -191,6 +373,7 @@ export function BuyAirtime({ setActiveTab }: BuyAirtimeProps) {
           recipientPhone,
           senderPhone: "08012345678",
           recipientEmail: "miniapp@aitimeplus.xyz",
+          tx_hash: "direct_usdc_transfer" // Add information about the transaction type
         }),
       });
 
@@ -218,8 +401,8 @@ export function BuyAirtime({ setActiveTab }: BuyAirtimeProps) {
       if (error instanceof Error) {
         if (error.message.includes("user rejected")) {
           errorMessage = "Transaction was rejected. Please try again.";
-        } else if (error.message.includes("insufficient funds")) {
-          errorMessage = "Insufficient funds. Please check your balance.";
+        } else if (error.message.includes("insufficient funds") || error.message.includes("Insufficient")) {
+          errorMessage = error.message;
         } else if (error.message.includes("network")) {
           errorMessage = "Network error. Please check your connection.";
         } else {
@@ -232,6 +415,7 @@ export function BuyAirtime({ setActiveTab }: BuyAirtimeProps) {
       setShowErrorModal(true);
     } finally {
       setIsSubmitting(false);
+      setTransactionStatus("");
     }
   };
 
@@ -367,6 +551,9 @@ export function BuyAirtime({ setActiveTab }: BuyAirtimeProps) {
                 <span className="font-bold">Recipient:</span> {recipientPhone}
               </p>
             </div>
+            {transactionStatus && (
+              <p className="text-blue-500 text-center mb-4">{transactionStatus}</p>
+            )}
             <div className="flex justify-end space-x-4">
               <Button variant="ghost" onClick={() => {
                 console.log('Edit button clicked, closing modal');
