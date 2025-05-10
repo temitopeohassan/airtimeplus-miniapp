@@ -138,9 +138,13 @@ export function BuyAirtime({ setActiveTab }: BuyAirtimeProps) {
 
   // Check the user's USDC balance
   const checkUsdcBalance = async () => {
-    if (!address || !publicClient) return BigInt(0);
+    if (!address || !publicClient) {
+      console.error("Missing address or publicClient");
+      return BigInt(0);
+    }
     
     try {
+      console.log("Checking USDC balance for address:", address);
       const balance = await publicClient.readContract({
         address: USDC_CONTRACT_ADDRESS,
         abi: USDC_TOKEN_ABI,
@@ -148,11 +152,21 @@ export function BuyAirtime({ setActiveTab }: BuyAirtimeProps) {
         args: [address]
       });
       
-      console.log(`USDC Balance: ${formatUnits(balance, 6)} USDC`);
+      const formattedBalance = formatUnits(balance, 6);
+      console.log(`Raw USDC Balance: ${balance.toString()}`);
+      console.log(`Formatted USDC Balance: ${formattedBalance} USDC`);
+      
       return balance;
     } catch (error) {
       console.error("Error checking USDC balance:", error);
-      return BigInt(0);
+      if (error instanceof Error) {
+        console.error("Error details:", {
+          name: error.name,
+          message: error.message,
+          stack: error.stack
+        });
+      }
+      throw new Error("Failed to check USDC balance. Please try again.");
     }
   };
 
@@ -327,11 +341,23 @@ export function BuyAirtime({ setActiveTab }: BuyAirtimeProps) {
         contractAddress: CONTRACT_ADDRESS
       });
 
-      // Check USDC balance
+      // Check USDC balance with better error handling
       setTransactionStatus("Checking your USDC balance...");
-      const balance = await checkUsdcBalance();
-      if (balance < amountInWei) {
-        throw new Error(`Insufficient USDC balance. You have ${formatUnits(balance, 6)} USDC, but ${usdcValue} USDC is required.`);
+      let balance;
+      try {
+        balance = await checkUsdcBalance();
+        const formattedBalance = formatUnits(balance, 6);
+        console.log(`Current balance: ${formattedBalance} USDC`);
+        console.log(`Required amount: ${usdcValue} USDC`);
+        
+        if (balance < amountInWei) {
+          throw new Error(
+            `Insufficient USDC balance. You have ${formattedBalance} USDC, but ${usdcValue} USDC is required.`
+          );
+        }
+      } catch (error) {
+        console.error("Balance check failed:", error);
+        throw error;
       }
 
       // Implementation strategy:
