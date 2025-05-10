@@ -3,17 +3,6 @@
           "header": "eyJmaWQiOjcwODcwNywidHlwZSI6ImN1c3RvZHkiLCJrZXkiOiIweDQwMTJGRmQzQmE5ZTJiRjY3NDIzNTFEQzJDNDE1NWFDRjBEZjVhZWUifQ",
           "payload": "eyJkb21haW4iOiJhaXJ0aW1lcGx1cy1taW5pYXBwLnZlcmNlbC5hcHAifQ",
           "signature": "MHhmNmQyMDI2ZDQ3MzRlZmE3NDRmZTdmNjY1NjM3MDM5MmMxZTRlMjI2YmQyMzQyY2VmNjY1NWI1MWJkNzFiMmQ5NmM4NTEyMzhmNThmMjgyYTcyNWZiNzc2ODViZmE1MDg2NjYxZWUzNGUyZTkyNGU1NjkxNzI1NzdlMGRkNmMzODFj"
-        },
-    "frame": {
-      "version": "1",
-      "name": "AirtimePlus",
-      "homeUrl": "https://airtimeplus-miniapp.vercel.app/",
-      "iconUrl": "https://airtimeplus-miniapp.vercel.app/icon.png",
-      "splashImageUrl": "https://airtimeplus-miniapp.vercel.app/splash.png",
-      "splashBackgroundColor": "#000000",
-      "subtitle": "Top up airtime easily",
-      "description": "A fast and simple way to buy airtime directly from your wallet.",
-      "ogImageUrl": "https://airtimeplus-miniapp.vercel.app/og-image.png"
-    }
+        }
   }
   
