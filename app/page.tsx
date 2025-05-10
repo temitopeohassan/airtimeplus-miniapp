@@ -26,7 +26,7 @@ export default function App() {
   const { setFrameReady, isFrameReady, context } = useMiniKit();
   const [frameAdded, setFrameAdded] = useState(false);
 
-  const addFrame = useAddFrame();
+  const { addFrame } = useAddFrame();
 
   useEffect(() => {
     if (!isFrameReady) {
@@ -35,7 +35,7 @@ export default function App() {
   }, [setFrameReady, isFrameReady]);
 
   const handleAddFrame = useCallback(async () => {
-    const frameAdded = await addFrame();
+    const frameAdded = await addFrame({ id: 'airtimeplus' });
     setFrameAdded(Boolean(frameAdded));
   }, [addFrame]);
 
