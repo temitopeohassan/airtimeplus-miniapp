@@ -219,43 +219,6 @@ export function BuyAirtime({ setActiveTab }: BuyAirtimeProps) {
     }
   };
 
-  // Approve the contract to spend USDC
-  const approveUsdcSpend = async (amount: bigint) => {
-    if (!walletClient || !address || !publicClient) throw new Error("Wallet not connected");
-    
-    setTransactionStatus("Approving USDC spend...");
-    console.log(`Approving ${formatUnits(amount, 6)} USDC for contract ${CONTRACT_ADDRESS}`);
-    
-    try {
-      const { request } = await publicClient.simulateContract({
-        address: USDC_CONTRACT_ADDRESS,
-        abi: USDC_TOKEN_ABI,
-        functionName: "approve",
-        args: [CONTRACT_ADDRESS, amount],
-        account: address
-      });
-      
-      const txHash = await walletClient.writeContract(request);
-      console.log("Approval transaction hash:", txHash);
-      
-      setTransactionStatus("Waiting for approval confirmation...");
-      const receipt = await publicClient.waitForTransactionReceipt({
-        hash: txHash,
-        timeout: 60000
-      });
-      
-      if (receipt.status === 'reverted') {
-        throw new Error("USDC approval transaction was reverted");
-      }
-      
-      console.log("USDC approval successful");
-      return true;
-    } catch (error) {
-      console.error("Error approving USDC spend:", error);
-      throw error;
-    }
-  };
-
   // Directly transfer USDC to the contract address
   const transferUsdcDirectly = async (amount: bigint) => {
     if (!walletClient || !address || !publicClient) throw new Error("Wallet not connected");
@@ -264,29 +227,71 @@ export function BuyAirtime({ setActiveTab }: BuyAirtimeProps) {
     console.log(`Transferring ${formatUnits(amount, 6)} USDC to contract ${CONTRACT_ADDRESS}`);
     
     try {
-      const { request } = await publicClient.simulateContract({
-        address: USDC_CONTRACT_ADDRESS,
+      // First check if we're on the correct network
+      const chainId = await publicClient.getChainId();
+      const usdcAddress = chainId === 1 ? 
+        "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48" : // Mainnet
+        "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"; // Base
+
+      // Check allowance first
+      const allowance = await publicClient.readContract({
+        address: usdcAddress as `0x${string}`,
+        abi: USDC_TOKEN_ABI,
+        functionName: "allowance",
+        args: [address, CONTRACT_ADDRESS]
+      });
+
+      console.log(`Current allowance: ${formatUnits(allowance, 6)} USDC`);
+
+      // If allowance is insufficient, approve first
+      if (allowance < amount) {
+        setTransactionStatus("Approving USDC spend...");
+        const { request: approveRequest } = await publicClient.simulateContract({
+          address: usdcAddress as `0x${string}`,
+          abi: USDC_TOKEN_ABI,
+          functionName: "approve",
+          args: [CONTRACT_ADDRESS, amount],
+          account: address
+        });
+
+        const approveTxHash = await walletClient.writeContract(approveRequest);
+        console.log("Approval transaction hash:", approveTxHash);
+
+        setTransactionStatus("Waiting for approval confirmation...");
+        const approveReceipt = await publicClient.waitForTransactionReceipt({
+          hash: approveTxHash,
+          timeout: 60000
+        });
+
+        if (approveReceipt.status === 'reverted') {
+          throw new Error("USDC approval transaction was reverted");
+        }
+      }
+
+      // Now proceed with the transfer
+      const { request: transferRequest } = await publicClient.simulateContract({
+        address: usdcAddress as `0x${string}`,
         abi: USDC_TOKEN_ABI,
         functionName: "transfer",
         args: [CONTRACT_ADDRESS, amount],
         account: address
       });
-      
-      const txHash = await walletClient.writeContract(request);
-      console.log("Transfer transaction hash:", txHash);
-      
+
+      const transferTxHash = await walletClient.writeContract(transferRequest);
+      console.log("Transfer transaction hash:", transferTxHash);
+
       setTransactionStatus("Waiting for transfer confirmation...");
-      const receipt = await publicClient.waitForTransactionReceipt({
-        hash: txHash,
+      const transferReceipt = await publicClient.waitForTransactionReceipt({
+        hash: transferTxHash,
         timeout: 60000
       });
-      
-      if (receipt.status === 'reverted') {
+
+      if (transferReceipt.status === 'reverted') {
         throw new Error("USDC transfer transaction was reverted");
       }
-      
+
       console.log("USDC transfer successful");
-      return true;
+      return transferTxHash;
     } catch (error) {
       console.error("Error transferring USDC:", error);
       throw error;
@@ -383,60 +388,51 @@ export function BuyAirtime({ setActiveTab }: BuyAirtimeProps) {
         throw error;
       }
 
-      // Implementation strategy:
-      // 1. First try using the contract's processPayment function
-      // 2. If that fails, try direct USDC transfer after approval
-
+      // Process payment
+      setTransactionStatus("Processing payment...");
+      let txHash;
       try {
-        // Option 1: Try calling processPayment directly
-        setTransactionStatus("Attempting to process payment via contract...");
-        await callProcessPayment(amountInWei);
-      } catch (processError) {
-        console.warn("processPayment failed, trying direct USDC transfer instead:", processError);
-        
-        // Option 2: Check allowance and approve if needed
-        const allowance = await checkAllowance();
-        if (allowance < amountInWei) {
-          await approveUsdcSpend(amountInWei);
-        } else {
-          console.log("Sufficient allowance already exists");
-        }
-        
-        // Direct transfer to contract
-        await transferUsdcDirectly(amountInWei);
+        // Try direct USDC transfer first
+        txHash = await transferUsdcDirectly(amountInWei);
+        console.log("Payment successful with transaction hash:", txHash);
+      } catch (error) {
+        console.error("Direct transfer failed:", error);
+        throw new Error("Payment failed. Please try again.");
       }
 
       // Only proceed with airtime purchase if payment is successful
-      console.log('Payment successful, proceeding with airtime purchase...');
-      setTransactionStatus("Sending airtime topup request...");
-      const response = await fetch(`${API_BASE_URL}/send-topup`, {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "Accept": "application/json"
-        },
-        body: JSON.stringify({
-          operatorId: selectedAmount.operator_id,
-          amount: selectedAmount.amount,
-          currency: selectedAmount.currency,
-          recipientPhone,
-          senderPhone: "08012345678",
-          recipientEmail: "miniapp@aitimeplus.xyz",
-          tx_hash: "direct_usdc_transfer" // Add information about the transaction type
-        }),
-      });
+      if (txHash) {
+        console.log('Payment successful, proceeding with airtime purchase...');
+        setTransactionStatus("Sending airtime topup request...");
+        const response = await fetch(`${API_BASE_URL}/send-topup`, {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          body: JSON.stringify({
+            operatorId: selectedAmount.operator_id,
+            amount: selectedAmount.amount,
+            currency: selectedAmount.currency,
+            recipientPhone,
+            senderPhone: "08012345678",
+            recipientEmail: "miniapp@aitimeplus.xyz",
+            tx_hash: txHash
+          }),
+        });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('API response not ok:', errorData);
-        throw new Error(errorData.error || "Network response was not ok");
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error('API response not ok:', errorData);
+          throw new Error(errorData.error || "Network response was not ok");
+        }
+        
+        const dataResp = await response.json();
+        console.log("Topup Response:", dataResp);
+
+        setShowConfirmModal(false);
+        setActiveTab("success");
       }
-      
-      const dataResp = await response.json();
-      console.log("Topup Response:", dataResp);
-
-      setShowConfirmModal(false);
-      setActiveTab("success");
     } catch (error) {
       console.error("Error processing transaction:", error);
       let errorMessage = "Transaction unsuccessful. Please try again.";
