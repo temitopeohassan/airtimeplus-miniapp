@@ -1,1 +1,19 @@
-<meta name='fc:frame' content='{"button":{"title":"AirtimePlus","action":{"type":"launch_frame","splashBackgroundColor":"#000000","url":"https://airtimeplus-miniapp.vercel.app/","splashImageUrl":"https://airtimeplus-miniapp.vercel.app/splash.png","name":"AirtimePlus"}},"version":"next","imageUrl":"https://airtimeplus-miniapp.vercel.app/image.png"}' />
+{
+    "accountAssociation": {
+      "header": "BASE64_ENCODED_HEADER",
+      "payload": "BASE64_ENCODED_PAYLOAD",
+      "signature": "BASE64_ENCODED_SIGNATURE"
+    },
+    "frame": {
+      "version": "1",
+      "name": "AirtimePlus",
+      "homeUrl": "https://airtimeplus-miniapp.vercel.app/",
+      "iconUrl": "https://airtimeplus-miniapp.vercel.app/icon.png",
+      "splashImageUrl": "https://airtimeplus-miniapp.vercel.app/splash.png",
+      "splashBackgroundColor": "#000000",
+      "subtitle": "Top up airtime easily",
+      "description": "A fast and simple way to buy airtime directly from your wallet.",
+      "ogImageUrl": "https://airtimeplus-miniapp.vercel.app/og-image.png"
+    }
+  }
+  
