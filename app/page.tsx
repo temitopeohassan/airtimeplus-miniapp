@@ -9,6 +9,7 @@ import { Button } from "./components/Button";
 import { Icon } from "./components/Icon";
 import { BuyAirtime } from "./components/BuyAirtime";
 import { useAccount, useConnect } from "wagmi";
+import { farcasterFrame } from '@farcaster/frame-wagmi-connector';
 
 export default function App() {
   const { setFrameReady, isFrameReady, context } = useMiniKit();
@@ -17,6 +18,9 @@ export default function App() {
   const { connect, connectors } = useConnect();
 
   const { addFrame } = useAddFrame();
+
+  // Initialize frame connector
+  const frameConnector = useMemo(() => farcasterFrame(), []);
 
   useEffect(() => {
     if (!isFrameReady) {
@@ -30,21 +34,29 @@ export default function App() {
       try {
         if (!isConnected) {
           console.log("Attempting to auto-connect wallet...");
-          const frameConnector = connectors.find(connector => connector.id === 'farcasterFrame');
-          if (frameConnector) {
-            await connect({ connector: frameConnector });
-          }
+          await connect({ connector: frameConnector });
         }
       } catch (error) {
         console.error("Auto-connect failed:", error);
       }
     };
     autoConnect();
-  }, [isConnected, connect, connectors]);
+  }, [isConnected, connect, frameConnector]);
 
   const handleAddFrame = useCallback(async () => {
-    const frameAdded = await addFrame({ id: 'airtimeplus' });
-    setFrameAdded(Boolean(frameAdded));
+    try {
+      console.log("Adding frame...");
+      const frameAdded = await addFrame({ 
+        id: 'airtimeplus',
+        title: 'AirtimePlus',
+        description: 'Buy airtime with USDC',
+        image: process.env.NEXT_PUBLIC_ICON_URL || '',
+      });
+      console.log("Frame added:", frameAdded);
+      setFrameAdded(Boolean(frameAdded));
+    } catch (error) {
+      console.error("Failed to add frame:", error);
+    }
   }, [addFrame]);
 
   const saveFrameButton = useMemo(() => {
@@ -74,6 +86,15 @@ export default function App() {
     return null;
   }, [context, frameAdded, handleAddFrame]);
 
+  const handleConnect = useCallback(async () => {
+    try {
+      console.log("Connecting wallet...");
+      await connect({ connector: frameConnector });
+    } catch (error) {
+      console.error("Connection failed:", error);
+    }
+  }, [connect, frameConnector]);
+
   return (
     <div className="flex flex-col min-h-screen font-sans text-[var(--app-foreground)] mini-app-theme from-[var(--app-background)] to-[var(--app-gray)]">
       <div className="w-full max-w-md mx-auto px-4 py-3">
@@ -88,7 +109,7 @@ export default function App() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => connect({ connector: connectors[0] })}
+                    onClick={() => connect({ connector: frameConnector })}
                   >
                     Disconnect
                   </Button>
@@ -97,12 +118,7 @@ export default function App() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => {
-                    const frameConnector = connectors.find(connector => connector.id === 'farcasterFrame');
-                    if (frameConnector) {
-                      connect({ connector: frameConnector });
-                    }
-                  }}
+                  onClick={handleConnect}
                 >
                   Connect Wallet
                 </Button>
