@@ -7,8 +7,6 @@ import { API_BASE_URL } from '../config';
 import { injected } from 'wagmi/connectors';
 import { Icon } from "./Icon";
 
-type BuyAirtimeProps = { setActiveTab: (tab: string) => void };
-
 type AirtimeService = {
   network_operator: string;
   operator_id: string;
@@ -56,7 +54,7 @@ const USDC_TOKEN_ABI = [
   }
 ] as const;
 
-export function BuyAirtime({ setActiveTab }: BuyAirtimeProps) {
+export function BuyAirtime() {
   const [selectedCountry, setSelectedCountry] = useState("");
   const [selectedOperator, setSelectedOperator] = useState<string>("");
   const [selectedAmount, setSelectedAmount] = useState<AirtimeService | null>(null);
