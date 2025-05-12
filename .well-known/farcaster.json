@@ -7,7 +7,7 @@
     "frame": {
       "version": "1",
       "name": "AirtimePlus",
-      "homeUrl": "airtimeplus-miniapp.vercel.app",
+      "homeUrl": "https://airtimeplus-miniapp.vercel.app",
       "iconUrl": "https://airtimeplus-miniapp.vercel.app/icon.png",
       "splashImageUrl": "https://airtimeplus-miniapp.vercel.app/splash.png",
       "splashBackgroundColor": "#000000",
