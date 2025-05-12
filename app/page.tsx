@@ -25,6 +25,8 @@ import { BuyAirtime } from "./components/BuyAirtime";
 export default function App() {
   const { setFrameReady, isFrameReady, context } = useMiniKit();
   const [frameAdded, setFrameAdded] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const { addFrame } = useAddFrame();
 
@@ -35,8 +37,20 @@ export default function App() {
   }, [setFrameReady, isFrameReady]);
 
   const handleAddFrame = useCallback(async () => {
-    const frameAdded = await addFrame({ id: 'airtimeplus' });
-    setFrameAdded(Boolean(frameAdded));
+    try {
+      setIsLoading(true);
+      setError(null);
+      const frameAdded = await addFrame({ 
+        id: 'airtimeplus',
+        // Add any additional frame metadata if needed
+      });
+      setFrameAdded(Boolean(frameAdded));
+    } catch (err) {
+      console.error('Failed to add frame:', err);
+      setError('Failed to save frame. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   }, [addFrame]);
 
   const saveFrameButton = useMemo(() => {
@@ -48,8 +62,9 @@ export default function App() {
           onClick={handleAddFrame}
           className="text-[var(--app-accent)] p-4"
           icon={<Icon name="plus" size="sm" />}
+          disabled={isLoading}
         >
-          Save Frame
+          {isLoading ? 'Saving...' : 'Save Frame'}
         </Button>
       );
     }
@@ -63,8 +78,17 @@ export default function App() {
       );
     }
 
+    if (error) {
+      return (
+        <div className="flex items-center space-x-1 text-sm font-medium text-red-500">
+          <Icon name="star" size="sm" className="text-red-500" />
+          <span>{error}</span>
+        </div>
+      );
+    }
+
     return null;
-  }, [context, frameAdded, handleAddFrame]);
+  }, [context, frameAdded, handleAddFrame, isLoading, error]);
 
   return (
     <div className="flex flex-col min-h-screen font-sans text-[var(--app-foreground)] mini-app-theme from-[var(--app-background)] to-[var(--app-gray)]">
