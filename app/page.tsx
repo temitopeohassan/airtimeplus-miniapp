@@ -21,12 +21,14 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { Button } from "./components/Button";
 import { Icon } from "./components/Icon";
 import { BuyAirtime } from "./components/BuyAirtime";
+import { useAccount, useConnect, useWalletClient, usePublicClient } from "wagmi";
+import { farcasterFrame as miniAppConnector } from '@farcaster/frame-wagmi-connector';
 
 export default function App() {
   const { setFrameReady, isFrameReady, context } = useMiniKit();
   const [frameAdded, setFrameAdded] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { isConnected, address } = useAccount();
+  const { connect, connectors } = useConnect();
 
   const { addFrame } = useAddFrame();
 
@@ -36,21 +38,27 @@ export default function App() {
     }
   }, [setFrameReady, isFrameReady]);
 
+  // Auto connect wallet on component mount
+  useEffect(() => {
+    const autoConnect = async () => {
+      try {
+        if (!isConnected) {
+          console.log("Attempting to auto-connect wallet...");
+          const frameConnector = connectors.find(connector => connector.id === 'farcasterFrame');
+          if (frameConnector) {
+            await connect({ connector: frameConnector });
+          }
+        }
+      } catch (error) {
+        console.error("Auto-connect failed:", error);
+      }
+    };
+    autoConnect();
+  }, [isConnected, connect, connectors]);
+
   const handleAddFrame = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      const frameAdded = await addFrame({ 
-        id: 'airtimeplus',
-        // Add any additional frame metadata if needed
-      });
-      setFrameAdded(Boolean(frameAdded));
-    } catch (err) {
-      console.error('Failed to add frame:', err);
-      setError('Failed to save frame. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
+    const frameAdded = await addFrame({ id: 'airtimeplus' });
+    setFrameAdded(Boolean(frameAdded));
   }, [addFrame]);
 
   const saveFrameButton = useMemo(() => {
@@ -62,9 +70,8 @@ export default function App() {
           onClick={handleAddFrame}
           className="text-[var(--app-accent)] p-4"
           icon={<Icon name="plus" size="sm" />}
-          disabled={isLoading}
         >
-          {isLoading ? 'Saving...' : 'Save Frame'}
+          Save Frame
         </Button>
       );
     }
@@ -78,17 +85,8 @@ export default function App() {
       );
     }
 
-    if (error) {
-      return (
-        <div className="flex items-center space-x-1 text-sm font-medium text-red-500">
-          <Icon name="star" size="sm" className="text-red-500" />
-          <span>{error}</span>
-        </div>
-      );
-    }
-
     return null;
-  }, [context, frameAdded, handleAddFrame, isLoading, error]);
+  }, [context, frameAdded, handleAddFrame]);
 
   return (
     <div className="flex flex-col min-h-screen font-sans text-[var(--app-foreground)] mini-app-theme from-[var(--app-background)] to-[var(--app-gray)]">
@@ -96,20 +94,33 @@ export default function App() {
         <header className="flex justify-between items-center mb-3 h-11">
           <div>
             <div className="flex items-center space-x-2">
-              <Wallet className="z-10">
-                <ConnectWallet>
-                  <Name className="text-inherit" />
-                </ConnectWallet>
-                <WalletDropdown>
-                  <Identity className="px-4 pt-3 pb-2" hasCopyAddressOnClick>
-                    <Avatar />
-                    <Name />
-                    <Address />
-                    <EthBalance />
-                  </Identity>
-                  <WalletDropdownDisconnect />
-                </WalletDropdown>
-              </Wallet>
+              {isConnected ? (
+                <div className="flex items-center space-x-2">
+                  <div className="text-sm font-medium">
+                    {address?.slice(0, 6)}...{address?.slice(-4)}
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => connect({ connector: connectors[0] })}
+                  >
+                    Disconnect
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    const frameConnector = connectors.find(connector => connector.id === 'farcasterFrame');
+                    if (frameConnector) {
+                      connect({ connector: frameConnector });
+                    }
+                  }}
+                >
+                  Connect Wallet
+                </Button>
+              )}
             </div>
           </div>
           <div>{saveFrameButton}</div>
