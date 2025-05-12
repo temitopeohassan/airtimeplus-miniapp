@@ -15,7 +15,7 @@ export default function App() {
   const { setFrameReady, isFrameReady, context } = useMiniKit();
   const [frameAdded, setFrameAdded] = useState(false);
   const { isConnected, address } = useAccount();
-  const { connect, connectors } = useConnect();
+  const { connect } = useConnect();
 
   const { addFrame } = useAddFrame();
 
