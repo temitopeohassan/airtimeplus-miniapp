@@ -1,9 +1,0 @@
-{
-    "countries": ["Nigeria", "Kenya", "Ghana"],
-    "networks": {
-      "Nigeria": ["MTN", "Airtel", "Glo", "9mobile"],
-      "Kenya": ["Safaricom", "Airtel Kenya", "Telkom Kenya"],
-      "Ghana": ["MTN Ghana", "Vodafone Ghana", "AirtelTigo"]
-    }
-  }
-  
