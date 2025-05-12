@@ -4,25 +4,11 @@ import {
   useMiniKit,
   useAddFrame,
 } from "@coinbase/onchainkit/minikit";
-import {
-  Name,
-  Identity,
-  Address,
-  Avatar,
-  EthBalance,
-} from "@coinbase/onchainkit/identity";
-import {
-  ConnectWallet,
-  Wallet,
-  WalletDropdown,
-  WalletDropdownDisconnect,
-} from "@coinbase/onchainkit/wallet";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { Button } from "./components/Button";
 import { Icon } from "./components/Icon";
 import { BuyAirtime } from "./components/BuyAirtime";
-import { useAccount, useConnect, useWalletClient, usePublicClient } from "wagmi";
-import { farcasterFrame as miniAppConnector } from '@farcaster/frame-wagmi-connector';
+import { useAccount, useConnect } from "wagmi";
 
 export default function App() {
   const { setFrameReady, isFrameReady, context } = useMiniKit();
