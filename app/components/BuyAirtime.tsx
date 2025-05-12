@@ -5,6 +5,7 @@ import { Button } from "./Button";
 import { Card } from "./Card";
 import { API_BASE_URL } from '../config';
 import { injected } from 'wagmi/connectors';
+import { Icon } from "./Icon";
 
 type BuyAirtimeProps = { setActiveTab: (tab: string) => void };
 
@@ -64,6 +65,7 @@ export function BuyAirtime({ setActiveTab }: BuyAirtimeProps) {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [countries, setCountries] = useState<Country[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [transactionStatus, setTransactionStatus] = useState("");
@@ -259,6 +261,13 @@ export function BuyAirtime({ setActiveTab }: BuyAirtimeProps) {
     }
   };
 
+  const resetForm = () => {
+    setSelectedCountry("");
+    setSelectedOperator("");
+    setSelectedAmount(null);
+    setRecipientPhone("");
+  };
+
   const handleConfirmedSubmit = async () => {
     console.log('Confirmation modal submit started');
     console.log('Selected amount details:', selectedAmount);
@@ -355,7 +364,8 @@ export function BuyAirtime({ setActiveTab }: BuyAirtimeProps) {
         console.log("Topup Response:", dataResp);
 
         setShowConfirmModal(false);
-        setActiveTab("success");
+        setShowSuccessModal(true);
+        resetForm();
       }
     } catch (error) {
       console.error("Error processing transaction:", error);
@@ -540,6 +550,30 @@ export function BuyAirtime({ setActiveTab }: BuyAirtimeProps) {
             <p className="text-red-600 dark:text-red-400 mb-4">{errorMessage}</p>
             <div className="flex justify-end">
               <Button onClick={() => setShowErrorModal(false)}>Dismiss</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success Modal */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-900 rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="text-center mb-6">
+              <div className="mx-auto w-12 h-12 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mb-4">
+                <Icon name="check" size="lg" className="text-green-600 dark:text-green-400" />
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                Airtime Sent Successfully
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400">
+                Your airtime transfer has been completed successfully.
+              </p>
+            </div>
+            <div className="flex justify-center">
+              <Button onClick={() => setShowSuccessModal(false)}>
+                Dismiss
+              </Button>
             </div>
           </div>
         </div>
