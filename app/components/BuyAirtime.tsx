@@ -406,7 +406,7 @@ export function BuyAirtime() {
     const handleWarpcastShare = async () => {
     await sdk.actions.composeCast({
       text: "I just bought airtime using this mini app",
-      embeds: ["https://warpcast.com/~/mini-apps/launch?domain=airitmeplus-miniapp.vercel.app"]
+      embeds: ["https://warpcast.com/~/mini-apps/launch?domain=airtimeplus-miniapp.vercel.app"]
     });
   };
 
