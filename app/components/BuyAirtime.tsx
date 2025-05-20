@@ -401,6 +401,12 @@ export function BuyAirtime() {
     );
   };
 
+  const handleWarpcastShare = () => {
+    const shareText = `Just sent ${selectedAmount?.amount} ${selectedAmount?.currency} airtime to ${recipientPhone} using @airtimeplus! 🎉`;
+    const encodedText = encodeURIComponent(shareText);
+    window.open(`https://warpcast.com/~/compose?text=${encodedText}`, '_blank');
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <Card title="Buy Airtime">
@@ -568,9 +574,12 @@ export function BuyAirtime() {
                 Your airtime transfer has been completed successfully.
               </p>
             </div>
-            <div className="flex justify-center">
+            <div className="flex justify-center space-x-4">
               <Button onClick={() => setShowSuccessModal(false)}>
                 Dismiss
+              </Button>
+              <Button onClick={handleWarpcastShare} variant="outline">
+                Share on Warpcast
               </Button>
             </div>
           </div>
