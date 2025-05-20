@@ -404,12 +404,25 @@ export function BuyAirtime() {
   };
 
     const handleWarpcastShare = async () => {
-    const result = await sdk.actions.composeCast({
+    try {
+      const result = await sdk.actions.composeCast({
         text: "I just bought airtime using this mini app",
         embeds: ["https://warpcast.com/~/mini-apps/launch?domain=airitmeplus-miniapp.vercel.app"]
-  })
-}
-  ;
+      });
+
+      if (result.success) {
+        console.log("Successfully shared on Warpcast");
+      } else {
+        console.error("Failed to share on Warpcast:", result.error);
+        setErrorMessage("Failed to share on Warpcast. Please try again.");
+        setShowErrorModal(true);
+      }
+    } catch (error) {
+      console.error("Error sharing on Warpcast:", error);
+      setErrorMessage("Failed to share on Warpcast. Please try again.");
+      setShowErrorModal(true);
+    }
+  };
 
 
   return (
