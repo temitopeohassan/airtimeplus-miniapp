@@ -6,6 +6,8 @@ import { Card } from "./Card";
 import { API_BASE_URL } from '../config';
 import { injected } from 'wagmi/connectors';
 import { Icon } from "./Icon";
+import { sdk } from '@farcaster/frame-sdk'
+
 
 type AirtimeService = {
   network_operator: string;
@@ -401,11 +403,14 @@ export function BuyAirtime() {
     );
   };
 
-  const handleWarpcastShare = () => {
-    const shareText = `Just sent ${selectedAmount?.amount} ${selectedAmount?.currency} airtime to ${recipientPhone} using @airtimeplus! 🎉`;
-    const encodedText = encodeURIComponent(shareText);
-    window.open(`https://warpcast.com/~/compose?text=${encodedText}`, '_blank');
-  };
+    const handleWarpcastShare = async () => {
+    const result = await sdk.actions.composeCast({
+        text: "I just bought airtime using this mini app",
+        embeds: ["https://warpcast.com/~/mini-apps/launch?domain=airitmeplus-miniapp.vercel.app"]
+  })
+}
+  ;
+
 
   return (
     <div className="space-y-6 animate-fade-in">
