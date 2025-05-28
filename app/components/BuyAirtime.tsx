@@ -212,52 +212,6 @@ export function BuyAirtime() {
     setShowConfirmModal(true);
   };
 
-  // Check the user's USDC balance
-  const checkUsdcBalance = async () => {
-    if (!address || !publicClient) {
-      console.error("Missing address or publicClient");
-      throw new Error("Wallet not connected");
-    }
-    
-    try {
-      console.log("Checking USDC balance for address:", address);
-      
-      // First check if we're on the correct network
-      const chainId = await publicClient.getChainId();
-      console.log("Current chain ID:", chainId);
-      
-      // Get the USDC contract address based on the network
-      const usdcAddress = chainId === 1 ? 
-        "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48" : // Mainnet
-        "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"; // Base
-        
-      console.log("Using USDC contract address:", usdcAddress);
-      
-      const balance = await publicClient.readContract({
-        address: usdcAddress as `0x${string}`,
-        abi: USDC_TOKEN_ABI,
-        functionName: "balanceOf",
-        args: [address]
-      });
-      
-      const formattedBalance = formatUnits(balance, 6);
-      console.log(`Raw USDC Balance: ${balance.toString()}`);
-      console.log(`Formatted USDC Balance: ${formattedBalance} USDC`);
-      
-      return balance;
-    } catch (error) {
-      console.error("Error checking USDC balance:", error);
-      if (error instanceof Error) {
-        console.error("Error details:", {
-          name: error.name,
-          message: error.message,
-          stack: error.stack
-        });
-      }
-      throw new Error("Failed to check USDC balance. Please ensure you're connected to the correct network.");
-    }
-  };
-
   // Directly transfer USDC to the contract address
   const transferUsdcDirectly = async (amount: bigint) => {
     if (!walletClient || !address || !publicClient) throw new Error("Wallet not connected");
@@ -489,13 +443,7 @@ export function BuyAirtime() {
     }
   };
 
-  const getOperatorAmounts = () => {
-    return getSelectedCountryOperators().filter(
-      service => service.network_operator === selectedOperator
-    );
-  };
-
-    const handleWarpcastShare = async () => {
+  const handleWarpcastShare = async () => {
     await sdk.actions.composeCast({
       text: "I just bought airtime using this mini app",
       embeds: ["https://farcaster.xyz/~/mini-apps/launch?domain=airtimeplus-miniapp.vercel.app"]
