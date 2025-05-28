@@ -10,7 +10,6 @@ import { Icon } from "./components/Icon";
 import { BuyAirtime } from "./components/BuyAirtime";
 import { useAccount, useConnect } from "wagmi";
 import { farcasterFrame } from '@farcaster/frame-wagmi-connector';
-import { sdk } from '@farcaster/frame-sdk'
 
 export default function App() {
   const { setFrameReady, isFrameReady, context } = useMiniKit();
