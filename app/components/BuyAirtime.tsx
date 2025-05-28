@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useEffect } from "react";
 import { useAccount, useWalletClient, usePublicClient, useConnect } from "wagmi";
 import { parseUnits, formatUnits } from "viem";
@@ -19,6 +21,7 @@ type AirtimeService = {
 
 type Country = {
   name: string;
+  exchange_rate: number;
   services: {
     airtime: AirtimeService[];
   };
@@ -57,9 +60,13 @@ const USDC_TOKEN_ABI = [
 ] as const;
 
 export function BuyAirtime() {
+  console.log('BuyAirtime component mounting...');
+  console.log('API_BASE_URL from config:', API_BASE_URL);
+  
   const [selectedCountry, setSelectedCountry] = useState("");
   const [selectedOperator, setSelectedOperator] = useState<string>("");
-  const [selectedAmount, setSelectedAmount] = useState<AirtimeService | null>(null);
+  const [enteredAmount, setEnteredAmount] = useState<string>("");
+  const [usdAmount, setUsdAmount] = useState<number>(0);
   const [recipientPhone, setRecipientPhone] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -69,6 +76,9 @@ export function BuyAirtime() {
   const [countries, setCountries] = useState<Country[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [transactionStatus, setTransactionStatus] = useState("");
+  const [failedTransactionHash, setFailedTransactionHash] = useState<string>("");
+  const [isSubmittingReport, setIsSubmittingReport] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   const { address, isConnected } = useAccount();
   const { data: walletClient } = useWalletClient();
@@ -76,6 +86,13 @@ export function BuyAirtime() {
   const { connect } = useConnect();
 
   const CONTRACT_ADDRESS = "0xaF108Dd1aC530F1c4BdED13f43E336A9cec92B44" as `0x${string}`;
+
+  console.log('BuyAirtime component state initialized');
+
+  // Debug useEffect
+  useEffect(() => {
+    console.log('Debug useEffect triggered');
+  }, []);
 
   // Auto connect wallet on component mount
   useEffect(() => {
@@ -96,11 +113,22 @@ export function BuyAirtime() {
   useEffect(() => {
     const fetchCountries = async () => {
       setIsLoading(true);
+      setApiError(null);
       try {
-        const res = await fetch(`${API_BASE_URL}/services-data`);
+        const res = await fetch(`${API_BASE_URL}/services-data`, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+          mode: 'cors',
+          credentials: 'omit'
+        });
+        
         if (!res.ok) {
           throw new Error(`HTTP error! status: ${res.status}`);
         }
+        
         const data = await res.json();
         if (data && data.countries && Array.isArray(data.countries)) {
           setCountries(data.countries);
@@ -109,6 +137,7 @@ export function BuyAirtime() {
         }
       } catch (err) {
         console.error("Failed to fetch countries:", err);
+        setApiError("Failed to connect to the server. Please check if the server is running.");
         setErrorMessage("Failed to load countries. Please try again later.");
         setShowErrorModal(true);
       } finally {
@@ -118,19 +147,66 @@ export function BuyAirtime() {
     fetchCountries();
   }, []);
 
+  // Add console logs for country selection
+  const getSelectedCountryOperators = () => {
+    const country = countries.find(c => c.name === selectedCountry);
+    console.log('Getting operators for country:', {
+      selectedCountry,
+      foundCountry: !!country,
+      operators: country?.services.airtime || []
+    });
+    return country?.services.airtime || [];
+  };
+
+  // Add console logs for amount calculation
+  useEffect(() => {
+    if (enteredAmount && selectedCountry) {
+      const country = countries.find(c => c.name === selectedCountry);
+      console.log('Calculating USD amount:', {
+        enteredAmount,
+        selectedCountry,
+        foundCountry: !!country,
+        exchangeRate: country?.exchange_rate
+      });
+      
+      if (country && country.exchange_rate) {
+        const localAmount = parseFloat(enteredAmount);
+        console.log('Amount calculation:', {
+          localAmount,
+          exchangeRate: country.exchange_rate,
+          isValid: !isNaN(localAmount) && localAmount > 0
+        });
+        
+        if (!isNaN(localAmount) && localAmount > 0) {
+          const usdValue = localAmount / country.exchange_rate;
+          console.log('USD value calculated:', usdValue);
+          setUsdAmount(usdValue);
+        } else {
+          console.log('Invalid amount, setting USD amount to 0');
+          setUsdAmount(0);
+        }
+      } else {
+        console.log('Missing country or exchange rate, setting USD amount to 0');
+        setUsdAmount(0);
+      }
+    } else {
+      console.log('No amount or country selected, setting USD amount to 0');
+      setUsdAmount(0);
+    }
+  }, [enteredAmount, selectedCountry, countries]);
+
   const handleSubmitForm = () => {
     console.log('Form submission started with values:', {
       selectedCountry,
       selectedOperator,
-      selectedAmount,
+      enteredAmount,
       recipientPhone
     });
 
     if (!selectedCountry) return alert("Please select a country.");
     if (!selectedOperator) return alert("Please select an operator.");
-    if (!selectedAmount) return alert("Please select an amount.");
+    if (!enteredAmount || parseFloat(enteredAmount) <= 0) return alert("Please enter a valid amount.");
     if (!recipientPhone) return alert("Please enter recipient phone number.");
-    if (!/^\d{11}$/.test(recipientPhone)) return alert("Please enter a valid 11-digit phone number.");
     
     console.log('All validations passed, showing confirmation modal');
     setShowConfirmModal(true);
@@ -264,16 +340,67 @@ export function BuyAirtime() {
   const resetForm = () => {
     setSelectedCountry("");
     setSelectedOperator("");
-    setSelectedAmount(null);
+    setEnteredAmount("");
     setRecipientPhone("");
+  };
+
+  const handleSubmitFailureReport = async () => {
+    if (!failedTransactionHash || !address) return;
+    
+    setIsSubmittingReport(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/submit-failure-report`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          transactionHash: failedTransactionHash,
+          walletAddress: address,
+          usdcAmount: usdAmount,
+          timestamp: new Date().toISOString()
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to submit report');
+      }
+
+      setShowErrorModal(false);
+      setFailedTransactionHash("");
+      alert('Failure report submitted successfully');
+    } catch (error) {
+      console.error('Error submitting failure report:', error);
+      alert('Failed to submit report. Please try again.');
+    } finally {
+      setIsSubmittingReport(false);
+    }
   };
 
   const handleConfirmedSubmit = async () => {
     console.log('Confirmation modal submit started');
-    console.log('Selected amount details:', selectedAmount);
+    console.log('Selected amount details:', {
+      selectedCountry,
+      selectedOperator,
+      enteredAmount,
+      usdAmount,
+      recipientPhone
+    });
     
-    if (!selectedAmount) {
-      console.error('No amount selected');
+    if (!selectedCountry) {
+      console.error('No country selected');
+      return;
+    }
+    if (!selectedOperator) {
+      console.error('No operator selected');
+      return;
+    }
+    if (!enteredAmount || parseFloat(enteredAmount) <= 0) {
+      console.error('Invalid amount');
+      return;
+    }
+    if (!recipientPhone) {
+      console.error('No recipient phone number');
       return;
     }
     
@@ -289,47 +416,17 @@ export function BuyAirtime() {
         throw new Error("Wallet connection failed. Please try again.");
       }
 
-      // Convert USDC value to wei (6 decimals for USDC)
-      const usdcValue = selectedAmount.usdc_value;
-      const amountInWei = parseUnits(usdcValue.toString(), 6);
-
-      console.log('Payment details:', {
-        usdcValue,
-        amountInWei: amountInWei.toString(),
-        operator: selectedAmount.network_operator,
-        amount: selectedAmount.amount,
-        currency: selectedAmount.currency,
-        contractAddress: CONTRACT_ADDRESS
-      });
-
-      // Check USDC balance with better error handling
-      setTransactionStatus("Checking your USDC balance...");
-      let balance;
-      try {
-        balance = await checkUsdcBalance();
-        const formattedBalance = formatUnits(balance, 6);
-        console.log(`Current balance: ${formattedBalance} USDC`);
-        console.log(`Required amount: ${usdcValue} USDC`);
-        
-        if (balance < amountInWei) {
-          throw new Error(
-            `Insufficient USDC balance. You have ${formattedBalance} USDC, but ${usdcValue} USDC is required.`
-          );
-        }
-      } catch (error) {
-        console.error("Balance check failed:", error);
-        throw error;
-      }
-
       // Process payment
       setTransactionStatus("Processing payment...");
       let txHash;
       try {
         // Try direct USDC transfer first
+        const amountInWei = parseUnits(enteredAmount, 6);
         txHash = await transferUsdcDirectly(amountInWei);
         console.log("Payment successful with transaction hash:", txHash);
       } catch (error) {
         console.error("Direct transfer failed:", error);
+        setFailedTransactionHash(txHash || "");
         throw new Error("Payment failed. Please try again.");
       }
 
@@ -344,9 +441,9 @@ export function BuyAirtime() {
             "Accept": "application/json"
           },
           body: JSON.stringify({
-            operatorId: selectedAmount.operator_id,
-            amount: selectedAmount.amount,
-            currency: selectedAmount.currency,
+            operatorId: selectedOperator,
+            amount: parseFloat(enteredAmount),
+            currency: getSelectedCountryOperators()[0]?.currency,
             recipientPhone,
             senderPhone: "08012345678",
             recipientEmail: "miniapp@aitimeplus.xyz",
@@ -392,11 +489,6 @@ export function BuyAirtime() {
     }
   };
 
-  const getSelectedCountryOperators = () => {
-    const country = countries.find(c => c.name === selectedCountry);
-    return country?.services.airtime || [];
-  };
-
   const getOperatorAmounts = () => {
     return getSelectedCountryOperators().filter(
       service => service.network_operator === selectedOperator
@@ -406,7 +498,7 @@ export function BuyAirtime() {
     const handleWarpcastShare = async () => {
     await sdk.actions.composeCast({
       text: "I just bought airtime using this mini app",
-      embeds: ["https://warpcast.com/~/mini-apps/launch?domain=airtimeplus-miniapp.vercel.app"]
+      embeds: ["https://farcaster.xyz/~/mini-apps/launch?domain=airtimeplus-miniapp.vercel.app"]
     });
   };
 
@@ -415,8 +507,15 @@ export function BuyAirtime() {
     <div className="space-y-6 animate-fade-in">
       <Card title="Buy Airtime">
         <div className="space-y-4">
-          <p className="text-[var(--app-foreground-muted)] dark:text-gray-400">Enter recipient details</p>
+          <p className="text-[var(--app-foreground-muted)] dark:text-gray-400">Enter Details</p>
           
+          {apiError && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+              <strong className="font-bold">Error: </strong>
+              <span className="block sm:inline">{apiError}</span>
+            </div>
+          )}
+
           {/* Country Selection */}
           <div>
             <label className="block text-sm font-medium mb-1 dark:text-white">Country</label>
@@ -426,7 +525,7 @@ export function BuyAirtime() {
               onChange={(e) => {
                 setSelectedCountry(e.target.value);
                 setSelectedOperator("");
-                setSelectedAmount(null);
+                setEnteredAmount("");
               }}
               disabled={isLoading}
             >
@@ -450,7 +549,6 @@ export function BuyAirtime() {
               value={selectedOperator}
               onChange={(e) => {
                 setSelectedOperator(e.target.value);
-                setSelectedAmount(null);
               }}
               disabled={!selectedCountry || isLoading}
             >
@@ -463,27 +561,27 @@ export function BuyAirtime() {
             </select>
           </div>
 
-          {/* Amount Selection */}
+          {/* Amount Input */}
           <div>
             <label className="block text-sm font-medium mb-1 dark:text-white">Amount</label>
-            <select
+            <input
+              type="number"
               className="w-full border px-3 py-2 rounded dark:bg-gray-800 dark:border-gray-600 dark:text-white"
-              value={selectedAmount?.amount.toString() || ""}
-              onChange={(e) => {
-                const amount = getOperatorAmounts().find(
-                  service => service.amount.toString() === e.target.value
-                );
-                setSelectedAmount(amount || null);
-              }}
+              placeholder="Enter amount"
+              value={enteredAmount}
+              onChange={(e) => setEnteredAmount(e.target.value)}
               disabled={!selectedOperator || isLoading}
-            >
-              <option value="">Select Amount</option>
-              {getOperatorAmounts().map((service) => (
-                <option key={service.amount} value={service.amount}>
-                  {service.amount} {service.currency} 
-                </option>
-              ))}
-            </select>
+            />
+          </div>
+
+          {/* USD Amount Display */}
+          <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">USD Amount:</span>
+              <span className="text-sm font-medium text-gray-400 dark:text-white">
+                {usdAmount > 0 && !isNaN(usdAmount) ? `$${usdAmount.toFixed(2)}` : 'Enter amount'}
+              </span>
+            </div>
           </div>
 
           {/* Phone Number Input */}
@@ -495,7 +593,6 @@ export function BuyAirtime() {
               placeholder="Enter phone number"
               value={recipientPhone}
               onChange={(e) => setRecipientPhone(e.target.value)}
-              maxLength={11}
               disabled={isLoading}
             />
           </div>
@@ -509,7 +606,7 @@ export function BuyAirtime() {
       </Card>
 
       {/* Confirmation Modal */}
-      {showConfirmModal && selectedAmount && (
+      {showConfirmModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-900 rounded-lg p-6 max-w-md w-full mx-4">
             <p className="text-gray-700 dark:text-gray-300 mb-4">
@@ -520,13 +617,13 @@ export function BuyAirtime() {
                 <span className="font-bold">Country:</span> {selectedCountry}
               </p>
               <p className="text-center dark:text-white">
-                <span className="font-bold">Operator:</span> {selectedAmount.network_operator}
+                <span className="font-bold">Operator:</span> {selectedOperator}
               </p>
               <p className="text-center dark:text-white">
-                <span className="font-bold">Amount:</span> {selectedAmount.amount} {selectedAmount.currency}
+                <span className="font-bold">Amount:</span> {enteredAmount} {getSelectedCountryOperators()[0]?.currency}
               </p>
               <p className="text-center dark:text-white">
-                <span className="font-bold">USDC Value:</span> ${selectedAmount.usdc_value}
+                <span className="font-bold">USDC Value:</span> {usdAmount > 0 && !isNaN(usdAmount) ? `$${usdAmount.toFixed(2)}` : 'Calculating...'}
               </p>
               <p className="text-center dark:text-white">
                 <span className="font-bold">Recipient:</span> {recipientPhone}
@@ -555,7 +652,26 @@ export function BuyAirtime() {
       {showErrorModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-900 rounded-lg p-6 max-w-md w-full mx-4">
-            <p className="text-red-600 dark:text-red-400 mb-4">{errorMessage}</p>
+            <div className="text-center mb-6">
+              <div className="mx-auto w-12 h-12 bg-red-100 dark:bg-red-900 rounded-full flex items-center justify-center mb-4">
+                <Icon name="check" size="lg" className="text-red-600 dark:text-red-400 rotate-45" />
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                Transaction Failed
+              </h3>
+              <p className="text-red-600 dark:text-red-400 mb-4">{errorMessage}</p>
+              {failedTransactionHash && (
+                <div className="mt-4">
+                  <Button 
+                    onClick={handleSubmitFailureReport}
+                    disabled={isSubmittingReport}
+                    className="w-full"
+                  >
+                    {isSubmittingReport ? "Submitting..." : "Submit Report"}
+                  </Button>
+                </div>
+              )}
+            </div>
             <div className="flex justify-end">
               <Button onClick={() => setShowErrorModal(false)}>Dismiss</Button>
             </div>
