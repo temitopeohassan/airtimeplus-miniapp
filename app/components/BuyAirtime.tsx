@@ -374,8 +374,8 @@ export function BuyAirtime() {
       setTransactionStatus("Processing payment...");
       let txHash;
       try {
-        // Try direct USDC transfer first
-        const amountInWei = parseUnits(enteredAmount, 6);
+        // Convert USD amount to USDC (6 decimals)
+        const amountInWei = parseUnits(usdAmount.toFixed(6), 6);
         txHash = await transferUsdcDirectly(amountInWei);
         console.log("Payment successful with transaction hash:", txHash);
       } catch (error) {
