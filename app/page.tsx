@@ -12,7 +12,6 @@ import { useAccount, useConnect } from "wagmi";
 import { farcasterFrame } from '@farcaster/frame-wagmi-connector';
 import { sdk } from '@farcaster/frame-sdk'
 
-
 export default function App() {
   const { setFrameReady, isFrameReady, context } = useMiniKit();
   const [frameAdded, setFrameAdded] = useState(false);
@@ -21,22 +20,8 @@ export default function App() {
 
   const { addFrame } = useAddFrame();
 
-  useEffect(() => {
-    const tryAddMiniApp = async () => {
-      try {
-        await sdk.actions.addMiniApp();
-      } catch (err) {
-        console.error("Failed to add MiniApp", err);
-      }
-    };
-    tryAddMiniApp();
-  }, []);
-  
-
   // Initialize frame connector
   const frameConnector = useMemo(() => farcasterFrame(), []);
-
-
 
   useEffect(() => {
     if (!isFrameReady) {
