@@ -395,7 +395,7 @@ export function BuyAirtime() {
             "Accept": "application/json"
           },
           body: JSON.stringify({
-            operatorId: selectedOperator,
+            operatorId: getSelectedCountryOperators().find(op => op.network_operator === selectedOperator)?.operator_id,
             amount: parseFloat(enteredAmount),
             currency: getSelectedCountryOperators()[0]?.currency,
             recipientPhone,
