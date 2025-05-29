@@ -409,7 +409,7 @@ export function BuyAirtime() {
             senderPhone: "08012345678",
             recipientEmail: "miniapp@aitimeplus.xyz",
             tx_hash: txHash,
-            countryCode: countryCode
+            countryCode: countries.find(c => c.name === selectedCountry)?.country_code
           }),
         });
 
