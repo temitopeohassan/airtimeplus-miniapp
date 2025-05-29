@@ -65,6 +65,7 @@ export function BuyAirtime() {
   console.log('API_BASE_URL from config:', API_BASE_URL);
   
   const [selectedCountry, setSelectedCountry] = useState("");
+  const [selectedCountryCode, setSelectedCountryCode] = useState("");
   const [selectedOperator, setSelectedOperator] = useState<string>("");
   const [enteredAmount, setEnteredAmount] = useState<string>("");
   const [usdAmount, setUsdAmount] = useState<number>(0);
@@ -294,6 +295,7 @@ export function BuyAirtime() {
 
   const resetForm = () => {
     setSelectedCountry("");
+    setSelectedCountryCode("");
     setSelectedOperator("");
     setEnteredAmount("");
     setRecipientPhone("");
@@ -404,7 +406,7 @@ export function BuyAirtime() {
             senderPhone: "08012345678",
             recipientEmail: "miniapp@aitimeplus.xyz",
             tx_hash: txHash,
-            countryCode: selectedCountryData?.country_code
+            countryCode: selectedCountryCode
           }),
         });
 
@@ -474,7 +476,9 @@ export function BuyAirtime() {
               className="w-full border px-3 py-2 rounded dark:bg-gray-800 dark:border-gray-600 dark:text-white"
               value={selectedCountry}
               onChange={(e) => {
+                const country = countries.find(c => c.name === e.target.value);
                 setSelectedCountry(e.target.value);
+                setSelectedCountryCode(country?.country_code || "");
                 setSelectedOperator("");
                 setEnteredAmount("");
               }}
@@ -491,6 +495,13 @@ export function BuyAirtime() {
               <p className="text-sm text-gray-500 mt-1">Loading countries...</p>
             )}
           </div>
+
+          {/* Hidden Country Code Field */}
+          <input 
+            type="hidden" 
+            value={selectedCountryCode} 
+            name="country_code" 
+          />
 
           {/* Operator Selection */}
           <div>
