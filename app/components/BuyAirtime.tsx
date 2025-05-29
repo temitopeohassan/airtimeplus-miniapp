@@ -391,8 +391,6 @@ export function BuyAirtime() {
       if (txHash) {
         console.log('Payment successful, proceeding with airtime purchase...');
         setTransactionStatus("Sending airtime topup request...");
-        const form = document.querySelector('form');
-        
         const response = await fetch(`${API_BASE_URL}/send-topup`, {
           method: "POST",
           headers: { 
