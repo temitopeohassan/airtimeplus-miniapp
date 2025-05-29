@@ -406,6 +406,7 @@ export function BuyAirtime() {
             recipientEmail: "miniapp@aitimeplus.xyz",
             tx_hash: txHash,
             countryCode: selectedCountryCode
+	  selectedCountry: selectedCountry 
           }),
         });
 
