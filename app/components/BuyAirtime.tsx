@@ -392,23 +392,23 @@ export function BuyAirtime() {
         console.log('Payment successful, proceeding with airtime purchase...');
         setTransactionStatus("Sending airtime topup request...");
         const response = await fetch(`${API_BASE_URL}/send-topup`, {
-          method: "POST",
-          headers: { 
-            "Content-Type": "application/json",
-            "Accept": "application/json"
-          },
-          body: JSON.stringify({
-            operatorId: getSelectedCountryOperators().find(op => op.network_operator === selectedOperator)?.operator_id,
-            amount: parseFloat(enteredAmount),
-            currency: getSelectedCountryOperators()[0]?.currency,
-            recipientPhone,
-            senderPhone: "08012345678",
-            recipientEmail: "miniapp@aitimeplus.xyz",
-            tx_hash: txHash,
-            countryCode: selectedCountryCode,
-	  selectedCountry: selectedCountry 
-          }),
-        });
+  method: "POST",
+  headers: { 
+    "Content-Type": "application/json",
+    "Accept": "application/json"
+  },
+  body: JSON.stringify({
+    operatorId: getSelectedCountryOperators().find(op => op.network_operator === selectedOperator)?.operator_id,
+    amount: parseFloat(enteredAmount),
+    currency: getSelectedCountryOperators()[0]?.currency,
+    recipientPhone,
+    senderPhone: "08012345678",
+    recipientEmail: "miniapp@aitimeplus.xyz",
+    tx_hash: txHash,
+    countryCode: selectedCountryCode  // Send the country code (e.g., "NG", "US", etc.)
+  }),
+});
+
 
         if (!response.ok) {
           const errorData = await response.json();
@@ -456,109 +456,118 @@ export function BuyAirtime() {
   };
 
 
-  return (
-    <div className="space-y-6 animate-fade-in">
-      <Card title="Buy Airtime">
-        <div className="space-y-4">
-          <p className="text-[var(--app-foreground-muted)] dark:text-gray-400">Enter Details</p>
-          
-          {apiError && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-              <strong className="font-bold">Error: </strong>
-              <span className="block sm:inline">{apiError}</span>
-            </div>
+return (
+  <div className="space-y-6 animate-fade-in">
+    <Card title="Buy Airtime">
+      <div className="space-y-4">
+        <p className="text-[var(--app-foreground-muted)] dark:text-gray-400">Enter Details</p>
+        
+        {apiError && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+            <strong className="font-bold">Error: </strong>
+            <span className="block sm:inline">{apiError}</span>
+          </div>
+        )}
+
+        {/* Hidden Country Code Field */}
+        {selectedCountryCode && (
+          <input
+            type="hidden"
+            name="countryCode"
+            value={selectedCountryCode}
+          />
+        )}
+
+        {/* Country Selection */}
+        <div>
+          <label className="block text-sm font-medium mb-1 dark:text-white">Country</label>
+          <select
+            className="w-full border px-3 py-2 rounded dark:bg-gray-800 dark:border-gray-600 dark:text-white"
+            value={selectedCountry}
+            onChange={(e) => {
+              const country = countries.find(c => c.name === e.target.value);
+              setSelectedCountry(e.target.value);
+              setSelectedCountryCode(country?.country_code || "");
+              setSelectedOperator("");
+              setEnteredAmount("");
+            }}
+            disabled={isLoading}
+          >
+            <option value="">Select Country</option>
+            {countries.map((country) => (
+              <option key={country.name} value={country.name}>
+                {country.name}
+              </option>
+            ))}
+          </select>
+          {isLoading && (
+            <p className="text-sm text-gray-500 mt-1">Loading countries...</p>
           )}
+        </div>
 
-          {/* Country Selection */}
-          <div>
-            <label className="block text-sm font-medium mb-1 dark:text-white">Country</label>
-            <select
-              className="w-full border px-3 py-2 rounded dark:bg-gray-800 dark:border-gray-600 dark:text-white"
-              value={selectedCountry}
-              onChange={(e) => {
-                const country = countries.find(c => c.name === e.target.value);
-                setSelectedCountry(e.target.value);
-                setSelectedCountryCode(country?.country_code || "");
-                setSelectedOperator("");
-                setEnteredAmount("");
-              }}
-              disabled={isLoading}
-            >
-              <option value="">Select Country</option>
-              {countries.map((country) => (
-                <option key={country.name} value={country.name}>
-                  {country.name}
-                </option>
-              ))}
-            </select>
-            {isLoading && (
-              <p className="text-sm text-gray-500 mt-1">Loading countries...</p>
-            )}
-          </div>
+        {/* Operator Selection */}
+        <div>
+          <label className="block text-sm font-medium mb-1 dark:text-white">Operator</label>
+          <select
+            className="w-full border px-3 py-2 rounded dark:bg-gray-800 dark:border-gray-600 dark:text-white"
+            value={selectedOperator}
+            onChange={(e) => {
+              setSelectedOperator(e.target.value);
+            }}
+            disabled={!selectedCountry || isLoading}
+          >
+            <option value="">Select Operator</option>
+            {Array.from(new Set(getSelectedCountryOperators().map(op => op.network_operator))).map(operator => (
+              <option key={operator} value={operator}>
+                {operator}
+              </option>
+            ))}
+          </select>
+        </div>
 
-          {/* Operator Selection */}
-          <div>
-            <label className="block text-sm font-medium mb-1 dark:text-white">Operator</label>
-            <select
-              className="w-full border px-3 py-2 rounded dark:bg-gray-800 dark:border-gray-600 dark:text-white"
-              value={selectedOperator}
-              onChange={(e) => {
-                setSelectedOperator(e.target.value);
-              }}
-              disabled={!selectedCountry || isLoading}
-            >
-              <option value="">Select Operator</option>
-              {Array.from(new Set(getSelectedCountryOperators().map(op => op.network_operator))).map(operator => (
-                <option key={operator} value={operator}>
-                  {operator}
-                </option>
-              ))}
-            </select>
-          </div>
+        {/* Amount Input */}
+        <div>
+          <label className="block text-sm font-medium mb-1 dark:text-white">Amount</label>
+          <input
+            type="number"
+            className="w-full border px-3 py-2 rounded dark:bg-gray-800 dark:border-gray-600 dark:text-white"
+            placeholder="Enter amount"
+            value={enteredAmount}
+            onChange={(e) => setEnteredAmount(e.target.value)}
+            disabled={!selectedOperator || isLoading}
+          />
+        </div>
 
-          {/* Amount Input */}
-          <div>
-            <label className="block text-sm font-medium mb-1 dark:text-white">Amount</label>
-            <input
-              type="number"
-              className="w-full border px-3 py-2 rounded dark:bg-gray-800 dark:border-gray-600 dark:text-white"
-              placeholder="Enter amount"
-              value={enteredAmount}
-              onChange={(e) => setEnteredAmount(e.target.value)}
-              disabled={!selectedOperator || isLoading}
-            />
-          </div>
-
-          {/* USD Amount Display */}
-          <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">USD Amount:</span>
-              <span className="text-sm font-medium text-gray-400 dark:text-white">
-                {usdAmount > 0 && !isNaN(usdAmount) ? `$${usdAmount.toFixed(2)}` : 'Enter amount'}
-              </span>
-            </div>
-          </div>
-
-          {/* Phone Number Input */}
-          <div>
-            <label className="block text-sm font-medium mb-1 dark:text-white">Recipient Phone Number</label>
-            <input
-              type="tel"
-              className="w-full border px-3 py-2 rounded dark:bg-gray-800 dark:border-gray-600 dark:text-white"
-              placeholder="Enter phone number"
-              value={recipientPhone}
-              onChange={(e) => setRecipientPhone(e.target.value)}
-              disabled={isLoading}
-            />
-          </div>
-
-          <div className="text-right">
-            <Button onClick={handleSubmitForm} disabled={isSubmitting || isLoading}>
-              {isSubmitting ? "Processing..." : "Buy"}
-            </Button>
+        {/* USD Amount Display */}
+        <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+          <div className="flex justify-between items-center">
+            <span className="text-sm font-medium text-gray-600 dark:text-gray-400">USD Amount:</span>
+            <span className="text-sm font-medium text-gray-400 dark:text-white">
+              {usdAmount > 0 && !isNaN(usdAmount) ? `$${usdAmount.toFixed(2)}` : 'Enter amount'}
+            </span>
           </div>
         </div>
-      </Card>
+
+        {/* Phone Number Input */}
+        <div>
+          <label className="block text-sm font-medium mb-1 dark:text-white">Recipient Phone Number</label>
+          <input
+            type="tel"
+            className="w-full border px-3 py-2 rounded dark:bg-gray-800 dark:border-gray-600 dark:text-white"
+            placeholder="Enter phone number"
+            value={recipientPhone}
+            onChange={(e) => setRecipientPhone(e.target.value)}
+            disabled={isLoading}
+          />
+        </div>
+
+        <div className="text-right">
+          <Button onClick={handleSubmitForm} disabled={isSubmitting || isLoading}>
+            {isSubmitting ? "Processing..." : "Buy"}
+          </Button>
+        </div>
+      </div>
+    </Card>
 
       {/* Confirmation Modal */}
       {showConfirmModal && (
