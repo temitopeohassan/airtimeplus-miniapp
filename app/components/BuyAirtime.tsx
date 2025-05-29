@@ -391,6 +391,10 @@ export function BuyAirtime() {
       if (txHash) {
         console.log('Payment successful, proceeding with airtime purchase...');
         setTransactionStatus("Sending airtime topup request...");
+        const form = document.querySelector('form');
+        const countryCodeInput = form?.querySelector('input[name="country_code"]') as HTMLInputElement;
+        const countryCode = countryCodeInput?.value;
+        
         const response = await fetch(`${API_BASE_URL}/send-topup`, {
           method: "POST",
           headers: { 
@@ -405,7 +409,7 @@ export function BuyAirtime() {
             senderPhone: "08012345678",
             recipientEmail: "miniapp@aitimeplus.xyz",
             tx_hash: txHash,
-            countryCode: selectedCountryCode
+            countryCode: countryCode
           }),
         });
 
