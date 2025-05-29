@@ -391,7 +391,6 @@ export function BuyAirtime() {
       if (txHash) {
         console.log('Payment successful, proceeding with airtime purchase...');
         setTransactionStatus("Sending airtime topup request...");
-        const selectedCountryData = countries.find(c => c.name === selectedCountry);
         const response = await fetch(`${API_BASE_URL}/send-topup`, {
           method: "POST",
           headers: { 
