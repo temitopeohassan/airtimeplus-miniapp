@@ -21,6 +21,7 @@ type AirtimeService = {
 
 type Country = {
   name: string;
+  country_code: string;
   exchange_rate: number;
   services: {
     airtime: AirtimeService[];
@@ -401,7 +402,8 @@ export function BuyAirtime() {
             recipientPhone,
             senderPhone: "08012345678",
             recipientEmail: "miniapp@aitimeplus.xyz",
-            tx_hash: txHash
+            tx_hash: txHash,
+            countryCode: countries.find(c => c.name === selectedCountry)?.country_code
           }),
         });
 
